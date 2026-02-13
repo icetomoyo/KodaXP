@@ -572,32 +572,92 @@ class Session:
     """会话管理类
 
     支持会话持久化，以 JSONL 格式存储在 ~/.kodax/sessions/ 目录。
+    格式：第一行为元数据，后续为消息列表。
     """
     id: str
     messages: list
+    title: str = ""
+
+    def _extract_title(self, content) -> str:
+        """从消息内容提取标题"""
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            # 提取文本块
+            texts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    texts.append(block.get("text", ""))
+            text = " ".join(texts)
+        else:
+            text = str(content)
+        # 截取前 50 字符作为标题
+        title = text.strip()[:50]
+        return title + ("..." if len(text) > 50 else "")
 
     @classmethod
     def load(cls, session_id: str) -> "Session":
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         path = SESSIONS_DIR / f"{session_id}.jsonl"
         messages = []
+        title = ""
         if path.exists():
-            for line in path.read_text(encoding="utf-8").strip().split("\n"):
+            for i, line in enumerate(path.read_text(encoding="utf-8").strip().split("\n")):
                 if line:
-                    messages.append(json.loads(line))
-        return cls(id=session_id, messages=messages)
+                    data = json.loads(line)
+                    if i == 0 and isinstance(data, dict) and data.get("_type") == "meta":
+                        title = data.get("title", "")
+                    else:
+                        messages.append(data)
+        return cls(id=session_id, messages=messages, title=title)
 
     def save(self):
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         path = SESSIONS_DIR / f"{self.id}.jsonl"
+
+        # 自动生成标题
+        if not self.title and self.messages:
+            for msg in self.messages:
+                if msg.get("role") == "user":
+                    self.title = self._extract_title(msg.get("content", ""))
+                    break
+
         with open(path, "w", encoding="utf-8") as f:
+            # 第一行：元数据
+            meta = {"_type": "meta", "title": self.title, "id": self.id}
+            f.write(json.dumps(meta, ensure_ascii=False) + "\n")
+            # 后续：消息
             for msg in self.messages:
                 f.write(json.dumps(msg, ensure_ascii=False) + "\n")
 
     @staticmethod
-    def list_all() -> list[str]:
-        if not SESSIONS_DIR.exists(): return []
-        return sorted([f.stem for f in SESSIONS_DIR.glob("*.jsonl")], reverse=True)
+    def list_all() -> list[dict]:
+        """返回会话列表，包含 id, title, msg_count"""
+        if not SESSIONS_DIR.exists():
+            return []
+        sessions = []
+        for f in sorted(SESSIONS_DIR.glob("*.jsonl"), reverse=True):
+            try:
+                lines = f.read_text(encoding="utf-8").strip().split("\n")
+                if not lines:
+                    continue
+                first = json.loads(lines[0])
+                if first.get("_type") == "meta":
+                    sessions.append({
+                        "id": f.stem,
+                        "title": first.get("title", ""),
+                        "msg_count": len(lines) - 1  # 减去元数据行
+                    })
+                else:
+                    # 旧格式，无元数据
+                    sessions.append({
+                        "id": f.stem,
+                        "title": "",
+                        "msg_count": len(lines)
+                    })
+            except:
+                continue
+        return sessions[:10]
 
 
 # ============ Skill 系统 ============
@@ -651,8 +711,9 @@ def main():
         sessions = Session.list_all()
         if sessions:
             print("Sessions:")
-            for s in sessions[:10]:
-                print(f"  {s}")
+            for s in sessions:
+                title = s["title"] or "(no title)"
+                print(f"  {s['id']}  [{s['msg_count']} msgs]  {title}")
         else:
             print("No sessions found.")
         sys.exit(0)
