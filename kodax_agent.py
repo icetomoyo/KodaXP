@@ -749,7 +749,8 @@ def main():
             print("No sessions found.")
         sys.exit(0)
 
-    if not user_prompt:
+    # --team 和 --parallel 不需要位置参数
+    if not user_prompt and not args.team and not args.parallel:
         print("Kodax Agent - 极致轻量化 Coding Agent\n")
         print("Usage: uv run kodax_agent.py \"your task\"")
         print("       uv run kodax_agent.py /skill_name")
