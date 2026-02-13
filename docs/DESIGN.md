@@ -646,95 +646,114 @@ def stream_llm(messages: list) -> tuple[list, list]:
 
 ### 7.1 设计要点
 
-- **存储格式**: JSONL（每行一个 JSON 对象）
+- **存储格式**: JSONL（第一行为元数据，后续为消息）
 - **存储位置**: `~/.kodax/sessions/{session_id}.jsonl`
-- **自动保存**: 每次消息后追加
+- **自动保存**: 每次消息后覆盖保存
+- **自动标题**: 从第一条用户消息提取前 50 字符作为标题
 
-### 7.2 数据结构
+### 7.2 存储格式
+
+```jsonl
+{"_type": "meta", "title": "读取项目目录下的所有md文件", "id": "20260213_141051"}
+{"role": "user", "content": "读取项目目录下的所有md文件"}
+{"role": "assistant", "content": [{"type": "text", "text": "好的，我来读取..."}, {"type": "tool_use", "id": "...", "name": "glob", "input": {...}}]}
+{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "...", "content": "..."}]}
+```
+
+### 7.3 Session 类实现
 
 ```python
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
 import json
 import time
 
+SESSIONS_DIR = Path.home() / ".kodax" / "sessions"
+
 @dataclass
-class SessionEntry:
-    timestamp: float
-    type: str  # "message" | "tool_call" | "tool_result"
-    data: Any
+class Session:
+    """会话管理类"""
+    id: str
+    messages: list
+    title: str = ""
 
-    def to_json(self) -> str:
-        return json.dumps({
-            "timestamp": self.timestamp,
-            "type": self.type,
-            "data": self.data
-        })
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "SessionEntry":
-        d = json.loads(json_str)
-        return cls(
-            timestamp=d["timestamp"],
-            type=d["type"],
-            data=d["data"]
-        )
-```
-
-### 7.3 SessionManager
-
-```python
-from pathlib import Path
-import uuid
-
-class SessionManager:
-    def __init__(self, session_id: str | None = None):
-        self.session_dir = Path.home() / ".kodax" / "sessions"
-        self.session_dir.mkdir(parents=True, exist_ok=True)
-
-        if session_id:
-            self.session_id = session_id
+    def _extract_title(self, content) -> str:
+        """从消息内容提取标题（前 50 字符）"""
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            texts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    texts.append(block.get("text", ""))
+            text = " ".join(texts)
         else:
-            self.session_id = time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
-
-        self.session_file = self.session_dir / f"{self.session_id}.jsonl"
-        self.messages: list = []
-
-    def load(self) -> list:
-        """加载会话历史"""
-        if not self.session_file.exists():
-            return []
-
-        messages = []
-        with open(self.session_file, "r", encoding="utf-8") as f:
-            for line in f:
-                entry = SessionEntry.from_json(line.strip())
-                if entry.type == "message":
-                    messages.append(entry.data)
-
-        self.messages = messages
-        return messages
-
-    def save_message(self, message: dict):
-        """保存消息"""
-        entry = SessionEntry(
-            timestamp=time.time(),
-            type="message",
-            data=message
-        )
-
-        with open(self.session_file, "a", encoding="utf-8") as f:
-            f.write(entry.to_json() + "\n")
-
-        self.messages.append(message)
+            text = str(content)
+        title = text.strip()[:50]
+        return title + ("..." if len(text) > 50 else "")
 
     @classmethod
-    def list_sessions(cls) -> list[str]:
-        """列出所有会话"""
-        session_dir = Path.home() / ".kodax" / "sessions"
-        if not session_dir.exists():
+    def load(cls, session_id: str) -> "Session":
+        """加载会话"""
+        path = SESSIONS_DIR / f"{session_id}.jsonl"
+        messages = []
+        title = ""
+        if path.exists():
+            for i, line in enumerate(path.read_text(encoding="utf-8").strip().split("\n")):
+                if line:
+                    data = json.loads(line)
+                    if i == 0 and isinstance(data, dict) and data.get("_type") == "meta":
+                        title = data.get("title", "")
+                    else:
+                        messages.append(data)
+        return cls(id=session_id, messages=messages, title=title)
+
+    def save(self):
+        """保存会话"""
+        # 自动生成标题
+        if not self.title and self.messages:
+            for msg in self.messages:
+                if msg.get("role") == "user":
+                    self.title = self._extract_title(msg.get("content", ""))
+                    break
+
+        path = SESSIONS_DIR / f"{self.id}.jsonl"
+        with open(path, "w", encoding="utf-8") as f:
+            # 第一行：元数据
+            meta = {"_type": "meta", "title": self.title, "id": self.id}
+            f.write(json.dumps(meta, ensure_ascii=False) + "\n")
+            # 后续：消息
+            for msg in self.messages:
+                f.write(json.dumps(msg, ensure_ascii=False) + "\n")
+
+    @staticmethod
+    def list_all() -> list[dict]:
+        """返回会话列表 [{id, title, msg_count}, ...]"""
+        if not SESSIONS_DIR.exists():
             return []
-        return sorted([f.stem for f in session_dir.glob("*.jsonl")], reverse=True)
+        sessions = []
+        for f in sorted(SESSIONS_DIR.glob("*.jsonl"), reverse=True):
+            try:
+                lines = f.read_text(encoding="utf-8").strip().split("\n")
+                if not lines:
+                    continue
+                first = json.loads(lines[0])
+                if first.get("_type") == "meta":
+                    sessions.append({
+                        "id": f.stem,
+                        "title": first.get("title", ""),
+                        "msg_count": len(lines) - 1
+                    })
+                else:
+                    # 旧格式兼容
+                    sessions.append({
+                        "id": f.stem,
+                        "title": "",
+                        "msg_count": len(lines)
+                    })
+            except:
+                continue
+        return sessions[:10]
 ```
 
 ### 7.4 CLI 命令
@@ -747,10 +766,15 @@ uv run kodax_agent.py "你的任务"
 uv run kodax_agent.py --session resume "继续任务"
 
 # 恢复指定会话
-uv run kodax_agent.py --session 20240101_120000_abcd1234 "继续任务"
+uv run kodax_agent.py --session 20260213_141051 "继续任务"
 
-# 列出所有会话
+# 列出所有会话（显示标题和消息数）
 uv run kodax_agent.py --session list
+
+# 输出示例：
+# Sessions:
+#   20260213_141051  [19 msgs]  读取项目目录下的所有md文件
+#   20260213_140910  [6 msgs]   分析代码结构并添加注释
 ```
 
 ---

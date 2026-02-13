@@ -96,15 +96,39 @@ def test_session():
         kodax_agent.SESSIONS_DIR = Path(tmpdir)
 
         try:
+            # 测试带标题的会话
             session = kodax_agent.Session(id="test_session", messages=[])
-            session.messages.append({"role": "user", "content": "Hello"})
+            session.messages.append({"role": "user", "content": "Hello World, this is a test message"})
             session.save()
+
+            # 验证标题自动生成
+            assert session.title == "Hello World, this is a test message", f"Expected title from first message, got: {session.title}"
+            print("  ✓ Session title auto-generation")
 
             # 重新加载
             loaded = kodax_agent.Session.load("test_session")
             assert len(loaded.messages) == 1
-            assert loaded.messages[0]["content"] == "Hello"
-            print("  ✓ Session save/load")
+            assert loaded.messages[0]["content"] == "Hello World, this is a test message"
+            assert loaded.title == "Hello World, this is a test message"
+            print("  ✓ Session save/load with title")
+
+            # 测试 list_all 返回 dict
+            sessions = kodax_agent.Session.list_all()
+            assert len(sessions) == 1
+            assert sessions[0]["id"] == "test_session"
+            assert sessions[0]["title"] == "Hello World, this is a test message"
+            assert sessions[0]["msg_count"] == 1
+            print("  ✓ Session list_all returns dict with id, title, msg_count")
+
+            # 测试长标题截断
+            long_session = kodax_agent.Session(id="long_session", messages=[])
+            long_msg = "A" * 100  # 100 字符
+            long_session.messages.append({"role": "user", "content": long_msg})
+            long_session.save()
+            assert len(long_session.title) == 53  # 50 字符 + "..."
+            assert long_session.title.endswith("...")
+            print("  ✓ Long title truncation (50 chars + ...)")
+
         finally:
             kodax_agent.SESSIONS_DIR = original_dir
 
