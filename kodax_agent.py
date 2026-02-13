@@ -66,13 +66,31 @@ Always explain what you're doing before taking action."""
 
 # ============ Provider 抽象 ============
 class Provider(ABC):
+    """LLM Provider 抽象基类
+
+    所有 Provider 必须实现 stream 方法，支持流式输出和工具调用。
+    """
     @abstractmethod
     def stream(self, messages: list, tools: list, system: str, thinking: bool = False) -> tuple[list, list]:
-        """流式调用，返回 (text_blocks, tool_blocks)"""
+        """流式调用 LLM
+
+        Args:
+            messages: 对话消息列表
+            tools: 可用工具定义
+            system: 系统提示词
+            thinking: 是否启用 thinking mode
+
+        Returns:
+            (text_blocks, tool_blocks): 文本块和工具调用块
+        """
         pass
 
 
 class AnthropicProvider(Provider):
+    """Anthropic Claude 原生 Provider
+
+    支持 Claude 模型的所有特性，包括 Thinking Mode。
+    """
     def __init__(self):
         import anthropic
         self.client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -81,6 +99,8 @@ class AnthropicProvider(Provider):
     def stream(self, messages, tools, system, thinking=False):
         text_blocks, tool_blocks = [], []
         current_text = ""
+        thinking_text = ""
+        in_thinking = False
 
         kwargs = {"model": self.model, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
         if thinking:
@@ -92,15 +112,26 @@ class AnthropicProvider(Provider):
             for event in stream:
                 if event.type == "content_block_delta":
                     if event.delta.type == "text_delta":
+                        if in_thinking and thinking_text:
+                            # 结束 thinking 块，打印累积的内容
+                            print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                            thinking_text = ""
+                            in_thinking = False
                         print(event.delta.text, end="", flush=True)
                         current_text += event.delta.text
                     elif event.delta.type == "thinking_delta" and thinking:
-                        print(f"\n\033[90m[Thinking] {event.delta.thinking[:200]}...\033[0m", flush=True)
+                        if not in_thinking:
+                            in_thinking = True
+                        thinking_text += event.delta.thinking
                 elif event.type == "content_block_start" and event.content_block.type == "tool_use":
                     if current_text:
                         text_blocks.append({"type": "text", "text": current_text})
                         current_text = ""
                     print()
+
+            # 打印剩余的 thinking 内容
+            if thinking_text:
+                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
 
             final = stream.get_final_message()
             for block in final.content:
@@ -117,9 +148,14 @@ class AnthropicProvider(Provider):
 
 
 class OpenAICompatProvider(Provider):
-    BASE_URL: str
-    API_KEY_ENV: str
-    MODEL: str
+    """OpenAI 兼容 API 基类
+
+    适用于支持 OpenAI API 格式的服务 (Kimi Moonshot, Qwen, OpenAI)。
+    不支持 Thinking Mode。
+    """
+    BASE_URL: str  # API 基础 URL
+    API_KEY_ENV: str  # 环境变量名称
+    MODEL: str  # 模型名称
 
     def __init__(self):
         from openai import OpenAI
@@ -173,7 +209,11 @@ class OpenAIProvider(OpenAICompatProvider):
 
 
 class ZhipuProvider(Provider):
-    """智谱 AI GLM 模型 (zhipuai SDK)"""
+    """智谱 AI GLM 模型 (使用 zhipuai SDK)
+
+    通过官方 SDK 调用智谱 GLM 模型。
+    不支持 Thinking Mode，使用 zhipu-coding 可启用 Thinking。
+    """
     def __init__(self):
         from zhipuai import ZhipuAI
         self.client = ZhipuAI(api_key=os.environ.get("ZHIPU_API_KEY"))
@@ -225,6 +265,8 @@ class AnthropicCompatProvider(Provider):
     def stream(self, messages, tools, system, thinking=False):
         text_blocks, tool_blocks = [], []
         current_text = ""
+        thinking_text = ""
+        in_thinking = False
 
         kwargs = {"model": self.MODEL, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
         if thinking:
@@ -236,15 +278,24 @@ class AnthropicCompatProvider(Provider):
             for event in stream:
                 if event.type == "content_block_delta":
                     if event.delta.type == "text_delta":
+                        if in_thinking and thinking_text:
+                            print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                            thinking_text = ""
+                            in_thinking = False
                         print(event.delta.text, end="", flush=True)
                         current_text += event.delta.text
                     elif event.delta.type == "thinking_delta" and thinking:
-                        print(f"\n\033[90m[Thinking] {event.delta.thinking[:200]}...\033[0m", flush=True)
+                        if not in_thinking:
+                            in_thinking = True
+                        thinking_text += event.delta.thinking
                 elif event.type == "content_block_start" and event.content_block.type == "tool_use":
                     if current_text:
                         text_blocks.append({"type": "text", "text": current_text})
                         current_text = ""
                     print()
+
+            if thinking_text:
+                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
 
             final = stream.get_final_message()
             for block in final.content:
@@ -280,7 +331,7 @@ class ZhipuCodingProvider(AnthropicCompatProvider):
     """智谱 AI GLM Coding Plan - Anthropic 兼容接口"""
     BASE_URL = "https://open.bigmodel.cn/api/anthropic"
     API_KEY_ENV = "ZHIPU_API_KEY"
-    MODEL = "glm-4.7"
+    MODEL = "glm-5"
 
 
 PROVIDERS = {
@@ -296,6 +347,16 @@ PROVIDERS = {
 
 # ============ 工具执行 ============
 def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
+    """执行单个工具调用
+
+    Args:
+        name: 工具名称 (read, write, edit, bash, glob, grep)
+        input_data: 工具参数
+        confirm_tools: 需要确认的工具集合
+
+    Returns:
+        工具执行结果字符串
+    """
     if name in confirm_tools:
         print(f"\n\033[33m[Confirm]\033[0m Execute {name}?")
         print(f"  Input: {input_data}")
@@ -460,6 +521,10 @@ def run_team(tasks: list, provider_name: str, thinking: bool = False) -> list:
 
 # ============ Token 估算 & 压缩 ============
 def estimate_tokens(messages: list) -> int:
+    """估算消息列表的 token 数量
+
+    使用简单的字符数/4 作为估算。
+    """
     total = 0
     for msg in messages:
         content = msg.get("content", "")
@@ -476,6 +541,11 @@ def estimate_tokens(messages: list) -> int:
 
 
 def compact_messages(messages: list, max_tokens: int = 100000) -> list:
+    """压缩消息列表，保持上下文在 token 限制内
+
+    当消息超过 max_tokens 时，保留最近 10 条消息，
+    并将更早的消息压缩为摘要。
+    """
     if estimate_tokens(messages) <= max_tokens:
         return messages
     recent = messages[-10:]
@@ -497,6 +567,10 @@ def compact_messages(messages: list, max_tokens: int = 100000) -> list:
 # ============ 会话管理 ============
 @dataclass
 class Session:
+    """会话管理类
+
+    支持会话持久化，以 JSONL 格式存储在 ~/.kodax/sessions/ 目录。
+    """
     id: str
     messages: list
 
@@ -526,6 +600,14 @@ class Session:
 
 # ============ Skill 系统 ============
 def load_skills() -> dict:
+    """动态加载 Skill
+
+    从 ~/.kodax/skills/ 目录加载所有 .py 文件，
+    查找以 skill_ 前缀命名的函数作为 Skill。
+
+    Returns:
+        {skill_name: skill_function} 字典
+    """
     skills = {}
     if not SKILLS_DIR.exists():
         SKILLS_DIR.mkdir(parents=True, exist_ok=True)

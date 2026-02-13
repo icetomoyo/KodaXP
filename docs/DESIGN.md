@@ -181,7 +181,7 @@ def stream_llm(messages: list) -> tuple[list, list]:
 | **Kimi (Moonshot)** | `KIMI_API_KEY` | moonshot-v1-128k | OpenAI | ❌ |
 | **Kimi Code** | `KIMI_API_KEY` | k2p5 | Anthropic | ✅ |
 | **智谱AI** | `ZHIPU_API_KEY` | glm-4-plus | zhipuai SDK | ❌ |
-| **智谱 Coding** | `ZHIPU_API_KEY` | glm-4.7 | Anthropic | ✅ |
+| **智谱 Coding** | `ZHIPU_API_KEY` | glm-5 | Anthropic | ✅ |
 | **Qwen (阿里云)** | `QWEN_API_KEY` | qwen-max | OpenAI | ❌ |
 | **OpenAI** | `OPENAI_API_KEY` | gpt-4o | 原生 | ❌ |
 
@@ -331,12 +331,12 @@ class ZhipuCodingProvider(AnthropicCompatProvider):
     """智谱 AI GLM Coding Plan - Anthropic 兼容接口"""
     BASE_URL = "https://open.bigmodel.cn/api/anthropic"
     API_KEY_ENV = "ZHIPU_API_KEY"
-    MODEL = "glm-4.7"
+    MODEL = "glm-5"
 ```
 
 **Coding Plan 优势**:
 - **Kimi Code**: 最高 100 tokens/s 输出速度，256K 上下文
-- **智谱 Coding**: GLM-4.7 模型，100元/月约等于 Claude Code $100 的 3 倍额度
+- **智谱 Coding**: GLM-5 模型，100元/月约等于 Claude Code $100 的 3 倍额度
 
 ### 4.6 智谱 AI Provider (zhipuai SDK)
 

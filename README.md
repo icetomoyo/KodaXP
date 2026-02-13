@@ -20,7 +20,7 @@ uv run kodax_agent.py "你的编程任务"
 | Kimi | `KIMI_API_KEY` | Moonshot (OpenAI 兼容) |
 | **Kimi Code** | `KIMI_API_KEY` | Kimi K2.5 Thinking (Anthropic 兼容) |
 | 智谱AI | `ZHIPU_API_KEY` | GLM (zhipuai SDK) |
-| **智谱 Coding** | `ZHIPU_API_KEY` | GLM Coding Plan (Anthropic 兼容, 支持 Thinking) |
+| **智谱 Coding** | `ZHIPU_API_KEY` | GLM-5 (Anthropic 兼容, 支持 Thinking) |
 | Qwen | `QWEN_API_KEY` | 通义千问 (OpenAI 兼容) |
 | OpenAI | `OPENAI_API_KEY` | GPT (OpenAI 兼容) |
 
