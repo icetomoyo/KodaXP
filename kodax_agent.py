@@ -91,6 +91,23 @@ def get_git_context() -> str:
         return ""
 
 
+def get_git_root() -> str:
+    """获取 Git 根目录，非 Git 仓库返回空字符串
+
+    用于 session 项目关联，在项目根目录和子目录都返回相同值。
+    """
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
 def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
     """获取项目结构快照"""
     try:
@@ -911,14 +928,26 @@ class Session:
         path = SESSIONS_DIR / f"{session_id}.jsonl"
         messages = []
         title = ""
+        meta = {}
         if path.exists():
             for i, line in enumerate(path.read_text(encoding="utf-8").strip().split("\n")):
                 if line:
                     data = json.loads(line)
                     if i == 0 and isinstance(data, dict) and data.get("_type") == "meta":
                         title = data.get("title", "")
+                        meta = data
                     else:
                         messages.append(data)
+
+        # 验证项目匹配
+        current_git_root = get_git_root()
+        session_git_root = meta.get("git_root", "")
+        if current_git_root and session_git_root and current_git_root != session_git_root:
+            print(f"\n\033[33m[Warning] Session project mismatch:\033[0m")
+            print(f"  Current:  {current_git_root}")
+            print(f"  Session:  {session_git_root}")
+            print(f"  Continuing anyway...\n")
+
         return cls(id=session_id, messages=messages, title=title)
 
     def save(self):
@@ -933,8 +962,13 @@ class Session:
                     break
 
         with open(path, "w", encoding="utf-8") as f:
-            # 第一行：元数据
-            meta = {"_type": "meta", "title": self.title, "id": self.id}
+            # 第一行：元数据（包含 git_root 用于项目关联）
+            meta = {
+                "_type": "meta",
+                "title": self.title,
+                "id": self.id,
+                "git_root": get_git_root()
+            }
             f.write(json.dumps(meta, ensure_ascii=False) + "\n")
             # 后续：消息
             for msg in self.messages:
@@ -942,10 +976,13 @@ class Session:
 
     @staticmethod
     def list_all() -> list[dict]:
-        """返回会话列表，包含 id, title, msg_count"""
+        """返回当前项目的会话列表，包含 id, title, msg_count, git_root"""
         if not SESSIONS_DIR.exists():
             return []
+
+        current_git_root = get_git_root()
         sessions = []
+
         for f in sorted(SESSIONS_DIR.glob("*.jsonl"), reverse=True):
             try:
                 lines = f.read_text(encoding="utf-8").strip().split("\n")
@@ -953,17 +990,25 @@ class Session:
                     continue
                 first = json.loads(lines[0])
                 if first.get("_type") == "meta":
+                    session_git_root = first.get("git_root", "")
+
+                    # 过滤：只显示当前项目的 sessions
+                    if current_git_root and session_git_root and current_git_root != session_git_root:
+                        continue
+
                     sessions.append({
                         "id": f.stem,
                         "title": first.get("title", ""),
-                        "msg_count": len(lines) - 1  # 减去元数据行
+                        "msg_count": len(lines) - 1,  # 减去元数据行
+                        "git_root": session_git_root
                     })
                 else:
-                    # 旧格式，无元数据
+                    # 旧格式，无元数据（无 git_root，不过滤）
                     sessions.append({
                         "id": f.stem,
                         "title": "",
-                        "msg_count": len(lines)
+                        "msg_count": len(lines),
+                        "git_root": ""
                     })
             except:
                 continue

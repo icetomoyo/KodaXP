@@ -431,6 +431,51 @@ uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "tes
 
 ---
 
+## 会话管理改进测试 (P1.5)
+
+### 18. Session 项目关联
+
+```bash
+# 1. 在 KodaX 项目创建 session
+cd /path/to/KodaX
+uv run kodax_agent.py --provider zhipu-coding "记住项目名是 KodaX"
+
+# 2. 查看创建的 session（应该显示）
+uv run kodax_agent.py --session list
+# 预期：显示刚创建的 session
+```
+
+```bash
+# 3. 切换到另一个 Git 项目
+cd /path/to/other-project
+
+# 4. 测试 --session list（应该不显示 KodaX 的 session）
+uv run kodax_agent.py --session list
+# 预期：No sessions found. 或只显示当前项目的 sessions
+```
+
+```bash
+# 5. 直接指定 KodaX session（应该警告项目不匹配）
+uv run kodax_agent.py --provider zhipu-coding --session <kodax_session_id> "test"
+
+# 预期输出：
+# [Warning] Session project mismatch:
+#   Current:  /path/to/other-project
+#   Session:  /path/to/KodaX
+#   Continuing anyway...
+```
+
+### 19. 子目录 Session 匹配
+
+```bash
+# 在项目子目录中测试（应该能正确匹配）
+cd /path/to/KodaX/src
+uv run kodax_agent.py --session list
+# 预期：显示 KodaX 项目的 sessions（因为 git_root 相同）
+```
+
+---
+
 ## 测试检查清单
 
 | 功能 | 测试命令 | 状态 |
@@ -442,6 +487,8 @@ uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "tes
 | Thinking Mode | `uv run kodax_agent.py --thinking "..."` | ☐ |
 | Session List | `uv run kodax_agent.py --session list` | ☐ |
 | Session Resume | `uv run kodax_agent.py --session resume "..."` | ☐ |
+| Session 项目过滤 | 跨项目 `--session list` 测试 | ☐ |
+| Session 跨项目警告 | 跨项目 `--session <id>` 测试 | ☐ |
 | 并行执行 | `uv run kodax_agent.py --parallel "..."` | ☐ |
 | Agent Team | `uv run kodax_agent.py --team "..."` | ☐ |
 | Skill 调用 | `uv run kodax_agent.py /skill_name` | ☐ |

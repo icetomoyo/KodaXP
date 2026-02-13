@@ -129,6 +129,13 @@ def test_session():
             assert long_session.title.endswith("...")
             print("  ✓ Long title truncation (50 chars + ...)")
 
+            # 测试 git_root 保存
+            session_path = Path(tmpdir) / "test_session.jsonl"
+            meta_line = session_path.read_text(encoding="utf-8").split("\n")[0]
+            meta = json.loads(meta_line)
+            assert "git_root" in meta, "git_root should be in session metadata"
+            print("  ✓ Session saves git_root in metadata")
+
         finally:
             kodax_agent.SESSIONS_DIR = original_dir
 
