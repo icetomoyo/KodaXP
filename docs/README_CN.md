@@ -1,113 +1,132 @@
 # Kodax Agent
 
-极致轻量化 Coding Agent
+<div align="center">
+
+**一个真正好用的轻量级 AI 编程助手。**
+
+单文件 • ~800 行代码 • 7 个大模型 • 流式输出 • 并行执行
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+---
+
+## 为什么选择 Kodax？
+
+其他 AI 编程助手都太臃肿了。Kodax 只有**一个文件**，**零配置**，开箱即用支持 **7 个大模型**。
+
+```
+# 对比
+Claude Code:   ~50,000 行, $20/月
+Aider:         ~15,000 行, 配置复杂
+Kodax:           ~800 行, uv sync 直接用
+```
+
+## 特性
+
+- **单文件** - 所有代码在 `kodax_agent.py`，读懂它，改它，发布它
+- **7 个模型** - Anthropic, OpenAI, Kimi, Kimi Code, 智谱, 智谱 Coding, 通义千问
+- **流式输出** - 实时显示，不用等待
+- **会话记忆** - 对话跨次保存
+- **并行工具** - 同时执行多个工具
+- **技能系统** - 用 Python 函数扩展功能
+- **思考模式** - 复杂任务的深度推理（部分模型支持）
 
 ## 快速开始
 
 ```bash
-# 安装依赖
+# 安装
+git clone https://github.com/icetomoyo/KodaX.git
+cd KodaX
 uv sync
 
+# 设置 API Key
+export ANTHROPIC_API_KEY=your-key    # 或 KIMI_API_KEY, ZHIPU_API_KEY 等
+
 # 运行
+uv run kodax_agent.py "用 FastAPI 创建一个 REST API"
+```
+
+## 使用
+
+```bash
+# 基本用法
 uv run kodax_agent.py "你的编程任务"
+
+# 使用其他模型
+uv run kodax_agent.py --provider kimi-code "你的任务"
+
+# 复杂任务开启思考模式
+uv run kodax_agent.py --provider zhipu-coding --thinking "重构这个项目"
+
+# 恢复之前的对话
+uv run kodax_agent.py --session resume "继续之前的 API 开发"
+
+# 并行执行（多文件任务更快）
+uv run kodax_agent.py --parallel "读取所有 markdown 文件并总结"
+
+# 多任务并行
+uv run kodax_agent.py --team "分析代码结构,检查测试覆盖率,查找 bug"
 ```
 
 ## 支持的模型
 
-| Provider | 环境变量 | 说明 |
-|----------|----------|------|
-| Anthropic | `ANTHROPIC_API_KEY` | Claude (默认) |
-| Kimi | `KIMI_API_KEY` | Moonshot (OpenAI 兼容) |
-| **Kimi Code** | `KIMI_API_KEY` | Kimi K2.5 Thinking (Anthropic 兼容) |
-| 智谱AI | `ZHIPU_API_KEY` | GLM (zhipuai SDK) |
-| **智谱 Coding** | `ZHIPU_API_KEY` | GLM-5 (Anthropic 兼容, 支持 Thinking) |
-| Qwen | `QWEN_API_KEY` | 通义千问 (OpenAI 兼容) |
-| OpenAI | `OPENAI_API_KEY` | GPT (OpenAI 兼容) |
+| 模型 | API Key | 思考模式 | 说明 |
+|------|---------|----------|------|
+| Anthropic | `ANTHROPIC_API_KEY` | 支持 | Claude（默认） |
+| Kimi Code | `KIMI_API_KEY` | 支持 | K2.5，性价比高 |
+| 智谱 Coding | `ZHIPU_API_KEY` | 支持 | GLM-5，中文友好 |
+| Kimi | `KIMI_API_KEY` | 不支持 | Moonshot |
+| 智谱 | `ZHIPU_API_KEY` | 不支持 | GLM-4 |
+| 通义千问 | `QWEN_API_KEY` | 不支持 | Qwen |
+| OpenAI | `OPENAI_API_KEY` | 不支持 | GPT-4 |
 
-### Coding Plan 推荐配置
+## 技能系统
 
-Kimi Code 和 智谱 Coding Plan 提供更优惠的 Coding 套餐：
+在 `~/.kodax/skills/` 创建自定义技能：
 
-```bash
-# Kimi Code - 支持 Thinking Mode 和工具调用
-uv run kodax_agent.py --provider kimi-code --thinking "复杂任务"
-
-# 智谱 GLM Coding Plan - 支持 Thinking Mode
-uv run kodax_agent.py --provider zhipu-coding --thinking "复杂任务"
+```python
+# ~/.kodax/skills/commit.py
+def skill_commit(agent, args: str) -> str:
+    """根据 git diff 生成 commit 消息"""
+    diff = agent.execute_tool("bash", {"command": "git diff --staged"})
+    return agent.call_llm([{"role": "user", "content": f"生成 commit 消息：\n{diff}"}])
 ```
 
-## 使用示例
-
 ```bash
-# 基本使用
-uv run kodax_agent.py "创建一个 HTTP 服务器"
-
-# 禁用确认
-uv run kodax_agent.py --no-confirm "删除临时文件"
-
-# 指定 Provider
-uv run kodax_agent.py --provider kimi "你的任务"
-
-# 启用 Thinking Mode (仅 Anthropic, Kimi Code, 智谱 Coding 支持)
-uv run kodax_agent.py --provider kimi-code --thinking "复杂任务"
-
-# 使用 Skill
 uv run kodax_agent.py /commit
-uv run kodax_agent.py /explain kodax_agent.py
-
-# 恢复会话
-uv run kodax_agent.py --session resume "继续任务"
 ```
 
-## P2: 并行执行
-
-### 并行工具执行
-
-当 LLM 返回多个工具调用时，可以并行执行以提高效率：
-
-```bash
-uv run kodax_agent.py --parallel "读取 src/ 目录下的所有配置文件"
-```
-
-### Agent Team
-
-运行多个子 Agent 并行执行不同任务：
-
-```bash
-# 多个任务并行执行
-uv run kodax_agent.py --team "分析 src/ 目录结构,检查测试覆盖率,查找 TODO 注释"
-
-# 使用 Thinking Mode
-uv run kodax_agent.py --provider kimi-code --thinking --team "代码审查,性能分析"
-```
-
-## CLI 选项
+## 命令选项
 
 | 选项 | 说明 |
 |------|------|
-| `--provider NAME` | 指定 LLM Provider |
-| `--thinking` | 启用 Thinking Mode (复杂推理任务) |
-| `--confirm TOOLS` | 指定需要确认的工具 |
-| `--no-confirm` | 禁用所有确认 |
+| `--provider NAME` | 指定大模型 |
+| `--thinking` | 开启思考模式 |
+| `--no-confirm` | 跳过确认 |
 | `--session resume\|list` | 会话管理 |
-| `--parallel` | 并行执行多个工具调用 (P2) |
-| `--team TASKS` | 运行多个子 Agent 并行 (P2) |
+| `--parallel` | 并行执行工具 |
+| `--team TASKS` | 多 Agent 并行 |
 
-## 功能状态
+## 原理
 
-| 优先级 | 功能 | 状态 |
-|--------|------|------|
-| P0 | 确认机制 | ✅ 已完成 |
-| P0 | 流式输出 | ✅ 已完成 |
-| P1 | 上下文压缩 | ✅ 已完成 |
-| P1 | 会话持久化 | ✅ 已完成 |
-| P1 | Skill 系统 | ✅ 已完成 |
-| P1 | 多模型支持 | ✅ 已完成 |
-| P2 | 工具并行执行 | ✅ 已完成 |
-| P2 | Agent Team | ✅ 已完成 |
+Kodax 是一个简单的 Agent 循环：
+
+1. 把你的任务 + 可用工具发给大模型
+2. 大模型返回文本和/或工具调用
+3. 执行工具，把结果发回去
+4. 重复直到完成
+
+核心逻辑只有 ~100 行。读 [kodax_agent.py](../kodax_agent.py) 就能完全理解它是怎么工作的。
 
 ## 文档
 
-- [设计文档](DESIGN.md) - 详细的架构和实现
-- [测试指南](TESTING.md) - 手动测试说明
-- [English README](../README.md) - 英文版 README
+- [设计文档](DESIGN.md) - 架构和实现细节
+- [测试指南](TESTING.md) - 如何测试所有功能
+- [English README](../README.md) - 英文版
+
+## 许可证
+
+MIT

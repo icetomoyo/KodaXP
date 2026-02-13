@@ -1,113 +1,132 @@
 # Kodax Agent
 
-An extremely lightweight Coding Agent.
+<div align="center">
+
+**A lightweight AI coding assistant that actually works.**
+
+Single file • ~800 LOC • 7 LLM providers • Streaming • Parallel execution
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+---
+
+## Why Kodax?
+
+Other AI coding assistants are bloated. Kodax is **one file**, **zero config**, and supports **7 LLM providers** out of the box.
+
+```
+# Compare
+Claude Code:   ~50,000 LOC, $20/month
+Aider:         ~15,000 LOC, complex setup
+Kodax:           ~800 LOC, uv sync && go
+```
+
+## Features
+
+- **One File** - Everything in `kodax_agent.py`. Read it, modify it, ship it.
+- **7 Providers** - Anthropic, OpenAI, Kimi, Kimi Code, Zhipu, Zhipu Coding, Qwen
+- **Streaming** - Real-time output, no waiting
+- **Session Memory** - Conversations persist across runs
+- **Parallel Tools** - Execute multiple tools simultaneously
+- **Skills** - Extend with custom Python functions
+- **Thinking Mode** - Deep reasoning for complex tasks (supported providers)
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install
+git clone https://github.com/icetomoyo/KodaX.git
+cd KodaX
 uv sync
 
+# Set your API key
+export ANTHROPIC_API_KEY=your-key    # or KIMI_API_KEY, ZHIPU_API_KEY, etc.
+
 # Run
+uv run kodax_agent.py "create a REST API with FastAPI"
+```
+
+## Usage
+
+```bash
+# Basic
 uv run kodax_agent.py "your coding task"
+
+# Use a different provider
+uv run kodax_agent.py --provider kimi-code "your task"
+
+# Enable thinking mode for complex tasks
+uv run kodax_agent.py --provider zhipu-coding --thinking "refactor this codebase"
+
+# Resume previous conversation
+uv run kodax_agent.py --session resume "continue working on the API"
+
+# Parallel execution (faster for multi-file tasks)
+uv run kodax_agent.py --parallel "read all markdown files and summarize"
+
+# Run multiple tasks in parallel
+uv run kodax_agent.py --team "analyze code structure,check test coverage,find bugs"
 ```
 
-## Supported Models
+## Supported Providers
 
-| Provider | Environment Variable | Description |
-|----------|---------------------|-------------|
-| Anthropic | `ANTHROPIC_API_KEY` | Claude (default) |
-| Kimi | `KIMI_API_KEY` | Moonshot (OpenAI compatible) |
-| **Kimi Code** | `KIMI_API_KEY` | Kimi K2.5 Thinking (Anthropic compatible) |
-| Zhipu AI | `ZHIPU_API_KEY` | GLM (zhipuai SDK) |
-| **Zhipu Coding** | `ZHIPU_API_KEY` | GLM-5 (Anthropic compatible, supports Thinking) |
-| Qwen | `QWEN_API_KEY` | Tongyi Qianwen (OpenAI compatible) |
-| OpenAI | `OPENAI_API_KEY` | GPT (OpenAI compatible) |
+| Provider | API Key | Thinking | Notes |
+|----------|---------|----------|-------|
+| Anthropic | `ANTHROPIC_API_KEY` | Yes | Claude (default) |
+| Kimi Code | `KIMI_API_KEY` | Yes | K2.5, great value |
+| Zhipu Coding | `ZHIPU_API_KEY` | Yes | GLM-5, Chinese-friendly |
+| Kimi | `KIMI_API_KEY` | No | Moonshot |
+| Zhipu | `ZHIPU_API_KEY` | No | GLM-4 |
+| Qwen | `QWEN_API_KEY` | No | Tongyi |
+| OpenAI | `OPENAI_API_KEY` | No | GPT-4 |
 
-### Recommended Coding Plans
+## Skills
 
-Kimi Code and Zhipu Coding Plan offer cost-effective coding subscriptions:
+Create custom skills in `~/.kodax/skills/`:
 
-```bash
-# Kimi Code - Supports Thinking Mode and tool calling
-uv run kodax_agent.py --provider kimi-code --thinking "complex task"
-
-# Zhipu GLM Coding Plan - Supports Thinking Mode
-uv run kodax_agent.py --provider zhipu-coding --thinking "complex task"
+```python
+# ~/.kodax/skills/commit.py
+def skill_commit(agent, args: str) -> str:
+    """Generate commit message from git diff"""
+    diff = agent.execute_tool("bash", {"command": "git diff --staged"})
+    return agent.call_llm([{"role": "user", "content": f"Generate commit message:\n{diff}"}])
 ```
 
-## Usage Examples
-
 ```bash
-# Basic usage
-uv run kodax_agent.py "create an HTTP server"
-
-# Disable confirmations
-uv run kodax_agent.py --no-confirm "delete temporary files"
-
-# Specify provider
-uv run kodax_agent.py --provider kimi "your task"
-
-# Enable Thinking Mode (only Anthropic, Kimi Code, Zhipu Coding supported)
-uv run kodax_agent.py --provider kimi-code --thinking "complex task"
-
-# Use skills
 uv run kodax_agent.py /commit
-uv run kodax_agent.py /explain kodax_agent.py
-
-# Resume session
-uv run kodax_agent.py --session resume "continue task"
-```
-
-## P2: Parallel Execution
-
-### Parallel Tool Execution
-
-When the LLM returns multiple tool calls, execute them in parallel for better efficiency:
-
-```bash
-uv run kodax_agent.py --parallel "read all config files in src/ directory"
-```
-
-### Agent Team
-
-Run multiple sub-agents in parallel for different tasks:
-
-```bash
-# Execute multiple tasks in parallel
-uv run kodax_agent.py --team "analyze src/ structure,check test coverage,find TODO comments"
-
-# With Thinking Mode
-uv run kodax_agent.py --provider kimi-code --thinking --team "code review,performance analysis"
 ```
 
 ## CLI Options
 
 | Option | Description |
 |--------|-------------|
-| `--provider NAME` | Specify LLM provider |
-| `--thinking` | Enable Thinking Mode (for complex reasoning) |
-| `--confirm TOOLS` | Specify tools requiring confirmation |
-| `--no-confirm` | Disable all confirmations |
+| `--provider NAME` | LLM provider to use |
+| `--thinking` | Enable extended thinking |
+| `--no-confirm` | Skip confirmations |
 | `--session resume\|list` | Session management |
-| `--parallel` | Execute multiple tool calls in parallel (P2) |
-| `--team TASKS` | Run multiple sub-agents in parallel (P2) |
+| `--parallel` | Parallel tool execution |
+| `--team TASKS` | Run multiple agents in parallel |
 
-## Feature Status
+## How It Works
 
-| Priority | Feature | Status |
-|----------|---------|--------|
-| P0 | Confirmation mechanism | ✅ Done |
-| P0 | Streaming output | ✅ Done |
-| P1 | Context compression | ✅ Done |
-| P1 | Session persistence | ✅ Done |
-| P1 | Skill system | ✅ Done |
-| P1 | Multi-model support | ✅ Done |
-| P2 | Parallel tool execution | ✅ Done |
-| P2 | Agent Team | ✅ Done |
+Kodax is a simple agent loop:
+
+1. Send your task + available tools to the LLM
+2. LLM responds with text and/or tool calls
+3. Execute tools, send results back
+4. Repeat until done
+
+The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to understand exactly how it works.
 
 ## Documentation
 
-- [Design Document](docs/DESIGN.md) - Detailed architecture and implementation
-- [Testing Guide](docs/TESTING.md) - Manual testing instructions
+- [Design Document](docs/DESIGN.md) - Architecture and implementation details
+- [Testing Guide](docs/TESTING.md) - How to test all features
 - [中文文档](docs/README_CN.md) - Chinese README
+
+## License
+
+MIT
