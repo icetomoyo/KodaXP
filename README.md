@@ -1,111 +1,113 @@
 # Kodax Agent
 
-极致轻量化 Coding Agent
+An extremely lightweight Coding Agent.
 
-## 快速开始
+## Quick Start
 
 ```bash
-# 安装依赖
+# Install dependencies
 uv sync
 
-# 运行
-uv run kodax_agent.py "你的编程任务"
+# Run
+uv run kodax_agent.py "your coding task"
 ```
 
-## 支持的模型
+## Supported Models
 
-| Provider | 环境变量 | 说明 |
-|----------|----------|------|
-| Anthropic | `ANTHROPIC_API_KEY` | Claude (默认) |
-| Kimi | `KIMI_API_KEY` | Moonshot (OpenAI 兼容) |
-| **Kimi Code** | `KIMI_API_KEY` | Kimi K2.5 Thinking (Anthropic 兼容) |
-| 智谱AI | `ZHIPU_API_KEY` | GLM (zhipuai SDK) |
-| **智谱 Coding** | `ZHIPU_API_KEY` | GLM-5 (Anthropic 兼容, 支持 Thinking) |
-| Qwen | `QWEN_API_KEY` | 通义千问 (OpenAI 兼容) |
-| OpenAI | `OPENAI_API_KEY` | GPT (OpenAI 兼容) |
+| Provider | Environment Variable | Description |
+|----------|---------------------|-------------|
+| Anthropic | `ANTHROPIC_API_KEY` | Claude (default) |
+| Kimi | `KIMI_API_KEY` | Moonshot (OpenAI compatible) |
+| **Kimi Code** | `KIMI_API_KEY` | Kimi K2.5 Thinking (Anthropic compatible) |
+| Zhipu AI | `ZHIPU_API_KEY` | GLM (zhipuai SDK) |
+| **Zhipu Coding** | `ZHIPU_API_KEY` | GLM-5 (Anthropic compatible, supports Thinking) |
+| Qwen | `QWEN_API_KEY` | Tongyi Qianwen (OpenAI compatible) |
+| OpenAI | `OPENAI_API_KEY` | GPT (OpenAI compatible) |
 
-### Coding Plan 推荐配置
+### Recommended Coding Plans
 
-Kimi Code 和 智谱 Coding Plan 提供更优惠的 Coding 套餐：
+Kimi Code and Zhipu Coding Plan offer cost-effective coding subscriptions:
 
 ```bash
-# Kimi Code - 支持 Thinking Mode 和工具调用
-uv run kodax_agent.py --provider kimi-code --thinking "复杂任务"
+# Kimi Code - Supports Thinking Mode and tool calling
+uv run kodax_agent.py --provider kimi-code --thinking "complex task"
 
-# 智谱 GLM Coding Plan - 支持 Thinking Mode
-uv run kodax_agent.py --provider zhipu-coding --thinking "复杂任务"
+# Zhipu GLM Coding Plan - Supports Thinking Mode
+uv run kodax_agent.py --provider zhipu-coding --thinking "complex task"
 ```
 
-## 使用示例
+## Usage Examples
 
 ```bash
-# 基本使用
-uv run kodax_agent.py "创建一个 HTTP 服务器"
+# Basic usage
+uv run kodax_agent.py "create an HTTP server"
 
-# 禁用确认
-uv run kodax_agent.py --no-confirm "删除临时文件"
+# Disable confirmations
+uv run kodax_agent.py --no-confirm "delete temporary files"
 
-# 指定 Provider
-uv run kodax_agent.py --provider kimi "你的任务"
+# Specify provider
+uv run kodax_agent.py --provider kimi "your task"
 
-# 启用 Thinking Mode (仅 Anthropic, Kimi Code, 智谱 Coding 支持)
-uv run kodax_agent.py --provider kimi-code --thinking "复杂任务"
+# Enable Thinking Mode (only Anthropic, Kimi Code, Zhipu Coding supported)
+uv run kodax_agent.py --provider kimi-code --thinking "complex task"
 
-# 使用 Skill
+# Use skills
 uv run kodax_agent.py /commit
 uv run kodax_agent.py /explain kodax_agent.py
 
-# 恢复会话
-uv run kodax_agent.py --session resume "继续任务"
+# Resume session
+uv run kodax_agent.py --session resume "continue task"
 ```
 
-## P2: 并行执行
+## P2: Parallel Execution
 
-### 并行工具执行
+### Parallel Tool Execution
 
-当 LLM 返回多个工具调用时，可以并行执行以提高效率：
+When the LLM returns multiple tool calls, execute them in parallel for better efficiency:
 
 ```bash
-uv run kodax_agent.py --parallel "读取 src/ 目录下的所有配置文件"
+uv run kodax_agent.py --parallel "read all config files in src/ directory"
 ```
 
 ### Agent Team
 
-运行多个子 Agent 并行执行不同任务：
+Run multiple sub-agents in parallel for different tasks:
 
 ```bash
-# 多个任务并行执行
-uv run kodax_agent.py --team "分析 src/ 目录结构,检查测试覆盖率,查找 TODO 注释"
+# Execute multiple tasks in parallel
+uv run kodax_agent.py --team "analyze src/ structure,check test coverage,find TODO comments"
 
-# 使用 Thinking Mode
-uv run kodax_agent.py --provider kimi-code --thinking --team "代码审查,性能分析"
+# With Thinking Mode
+uv run kodax_agent.py --provider kimi-code --thinking --team "code review,performance analysis"
 ```
 
-## CLI 选项
+## CLI Options
 
-| 选项 | 说明 |
-|------|------|
-| `--provider NAME` | 指定 LLM Provider |
-| `--thinking` | 启用 Thinking Mode (复杂推理任务) |
-| `--confirm TOOLS` | 指定需要确认的工具 |
-| `--no-confirm` | 禁用所有确认 |
-| `--session resume\|list` | 会话管理 |
-| `--parallel` | 并行执行多个工具调用 (P2) |
-| `--team TASKS` | 运行多个子 Agent 并行 (P2) |
+| Option | Description |
+|--------|-------------|
+| `--provider NAME` | Specify LLM provider |
+| `--thinking` | Enable Thinking Mode (for complex reasoning) |
+| `--confirm TOOLS` | Specify tools requiring confirmation |
+| `--no-confirm` | Disable all confirmations |
+| `--session resume\|list` | Session management |
+| `--parallel` | Execute multiple tool calls in parallel (P2) |
+| `--team TASKS` | Run multiple sub-agents in parallel (P2) |
 
-## 功能状态
+## Feature Status
 
-| 优先级 | 功能 | 状态 |
-|--------|------|------|
-| P0 | 确认机制 | ✅ 已完成 |
-| P0 | 流式输出 | ✅ 已完成 |
-| P1 | 上下文压缩 | ✅ 已完成 |
-| P1 | 会话持久化 | ✅ 已完成 |
-| P1 | Skill 系统 | ✅ 已完成 |
-| P1 | 多模型支持 | ✅ 已完成 |
-| P2 | 工具并行执行 | ✅ 已完成 |
-| P2 | Agent Team | ✅ 已完成 |
+| Priority | Feature | Status |
+|----------|---------|--------|
+| P0 | Confirmation mechanism | ✅ Done |
+| P0 | Streaming output | ✅ Done |
+| P1 | Context compression | ✅ Done |
+| P1 | Session persistence | ✅ Done |
+| P1 | Skill system | ✅ Done |
+| P1 | Multi-model support | ✅ Done |
+| P2 | Parallel tool execution | ✅ Done |
+| P2 | Agent Team | ✅ Done |
 
-## 详细文档
+## Documentation
 
-见 [docs/DESIGN.md](docs/DESIGN.md)
+- [Design Document](docs/DESIGN.md) - Detailed architecture and implementation
+- [Testing Guide](docs/TESTING.md) - Manual testing instructions
+- [中文文档](docs/README_CN.md) - Chinese README
