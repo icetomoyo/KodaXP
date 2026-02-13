@@ -87,16 +87,35 @@ uv run kodax_agent.py --team "analyze code structure,check test coverage,find bu
 
 Create custom skills in `~/.kodax/skills/`:
 
+**Python skill** (flexible, can execute tools):
 ```python
 # ~/.kodax/skills/commit.py
+
 def skill_commit(agent, args: str) -> str:
-    """Generate commit message from git diff"""
+    """Generate commit message from git diff"""  # <- This becomes the description
     diff = agent.execute_tool("bash", {"command": "git diff --staged"})
+    if not diff.strip():
+        return "No staged changes."
     return agent.call_llm([{"role": "user", "content": f"Generate commit message:\n{diff}"}])
 ```
 
+**Markdown skill** (simple, pure prompts):
+```markdown
+# ~/.kodax/skills/review.md
+
+# Code Review
+
+Review the code for:
+- Bugs and errors
+- Security issues
+- Performance problems
+- Code style
+```
+
 ```bash
-uv run kodax_agent.py /commit
+uv run kodax_agent.py              # List all skills with descriptions
+uv run kodax_agent.py /commit      # Execute skill
+uv run kodax_agent.py /review src/main.py
 ```
 
 ## CLI Options

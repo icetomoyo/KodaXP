@@ -87,16 +87,35 @@ uv run kodax_agent.py --team "分析代码结构,检查测试覆盖率,查找 bu
 
 在 `~/.kodax/skills/` 创建自定义技能：
 
+**Python 技能**（灵活，可执行工具）：
 ```python
 # ~/.kodax/skills/commit.py
+
 def skill_commit(agent, args: str) -> str:
-    """根据 git diff 生成 commit 消息"""
+    """根据 git diff 生成 commit 消息"""  # <- 自动提取为描述
     diff = agent.execute_tool("bash", {"command": "git diff --staged"})
+    if not diff.strip():
+        return "没有暂存的更改。"
     return agent.call_llm([{"role": "user", "content": f"生成 commit 消息：\n{diff}"}])
 ```
 
+**Markdown 技能**（简单，纯提示词）：
+```markdown
+# ~/.kodax/skills/review.md
+
+# 代码审查
+
+审查代码的以下方面：
+- Bug 和错误
+- 安全问题
+- 性能问题
+- 代码风格
+```
+
 ```bash
-uv run kodax_agent.py /commit
+uv run kodax_agent.py              # 列出所有技能及描述
+uv run kodax_agent.py /commit      # 执行技能
+uv run kodax_agent.py /review src/main.py
 ```
 
 ## 命令选项

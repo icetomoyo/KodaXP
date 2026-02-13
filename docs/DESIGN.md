@@ -409,8 +409,9 @@ dependencies = [
 ### 5.1 设计目标
 
 - **动态加载**: 无需重启即可添加新 skill
-- **简单定义**: `skill_` 前缀函数约定
-- **访问上下文**: 可访问 agent 和消息历史
+- **两种格式**: Python 函数（灵活）或 Markdown（简单）
+- **描述自动提取**: 从 docstring 或首行提取
+- **访问上下文**: 可访问 agent 工具和 LLM
 
 ### 5.2 目录结构
 
@@ -418,141 +419,81 @@ dependencies = [
 ~/.kodax/
 ├── config.toml           # 全局配置
 ├── skills/
-│   ├── commit.py         # /commit skill
+│   ├── commit.py         # /commit skill (Python)
+│   ├── commit.md         # /commit skill (Markdown) - 二选一
 │   ├── review.py         # /review skill
-│   ├── explain.py        # /explain skill
 │   └── custom/           # 用户自定义
-│       └── myskill.py
 └── sessions/             # 会话存储
     └── *.jsonl
 ```
 
 ### 5.3 Skill 定义格式
 
+**方式一：Python 函数**（灵活，可执行工具）
+
 ```python
 # ~/.kodax/skills/commit.py
-"""生成 git commit 消息"""
 
 def skill_commit(agent, args: str) -> str:
+    """根据 git diff 生成 commit 消息
+
+    描述从 docstring 第一行自动提取。
     """
-    Skill: 根据 git diff 自动生成 commit 消息
+    diff = agent.execute_tool("bash", {"command": "git diff --staged"})
+    if not diff.strip():
+        return "No staged changes."
 
-    Args:
-        agent: Agent 实例，可访问 messages, execute_tool 等
-        args: 用户传入的参数
+    return agent.call_llm([{
+        "role": "user",
+        "content": f"Generate commit message:\n\n{diff}"
+    }])
+```
 
-    Returns:
-        str: 执行结果
-    """
-    # 1. 获取 git diff
-    diff_result = agent.execute_tool("bash", {"command": "git diff --staged"})
+**方式二：Markdown 文件**（简单，纯提示词）
 
-    if "nothing to commit" in diff_result:
-        return "No staged changes to commit."
+```markdown
+# ~/.kodax/skills/commit.md
 
-    # 2. 调用 LLM 生成 commit 消息
-    prompt = f"""Based on the following git diff, generate a concise commit message:
+# Generate commit message
 
-{diff_result}
+Generate a concise git commit message following conventional commits format.
+Use git diff --staged to see the changes.
 
 Format: <type>: <description>
-
-Types: feat, fix, docs, style, refactor, test, chore
-"""
-
-    # 使用 agent 的消息历史
-    messages = agent.messages + [{"role": "user", "content": prompt}]
-    response = agent.call_llm(messages)
-
-    return f"Suggested commit message:\n{response}"
+Types: feat, fix, refactor, docs, test, chore
 ```
 
-### 5.4 Skill 加载机制
+- 文件内容作为用户提示词发送给 LLM
+- 描述从第一个 `#` 标题行提取
+- 如需参数，会追加到提示词末尾
+
+### 5.4 Skill API
+
+Python skill 可通过 `agent` 参数访问：
 
 ```python
-import importlib.util
-from pathlib import Path
+def skill_xxx(agent, args: str) -> str:
+    # 执行工具
+    result = agent.execute_tool("bash", {"command": "ls"})
 
-SKILLS_DIR = Path.home() / ".kodax" / "skills"
+    # 调用 LLM
+    response = agent.call_llm([{"role": "user", "content": "..."}])
 
-def load_skills() -> dict[str, callable]:
-    """动态加载所有 skill"""
-    skills = {}
+    # 访问消息历史
+    history = agent.messages
 
-    if not SKILLS_DIR.exists():
-        SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-        return skills
-
-    for skill_file in SKILLS_DIR.rglob("*.py"):
-        try:
-            spec = importlib.util.spec_from_file_location(
-                skill_file.stem, skill_file
-            )
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # 查找 skill_ 前缀的函数
-            for name, func in vars(module).items():
-                if name.startswith("skill_") and callable(func):
-                    skill_name = name[6:]  # 去掉 skill_ 前缀
-                    skills[skill_name] = func
-        except Exception as e:
-            print(f"Warning: Failed to load skill {skill_file}: {e}")
-
-    return skills
-
-
-def execute_skill(name: str, args: str, agent) -> str:
-    """执行 skill"""
-    skills = load_skills()
-
-    if name not in skills:
-        return f"Unknown skill: {name}. Available: {list(skills.keys())}"
-
-    try:
-        return skills[name](agent, args)
-    except Exception as e:
-        return f"Skill execution error: {e}"
+    return "result"
 ```
 
-### 5.5 CLI 集成
+### 5.5 使用示例
 
-```python
-def main():
-    # 检查是否是 skill 调用
-    if user_prompt.startswith("/"):
-        parts = user_prompt[1:].split(maxsplit=1)
-        skill_name = parts[0]
-        skill_args = parts[1] if len(parts) > 1 else ""
-
-        result = execute_skill(skill_name, skill_args, agent)
-        print(result)
-        return
-
-    # 正常 agent 循环
-    ...
-```
-
-### 5.6 内置 Skill 示例
-
-**`/commit`**: 生成 commit 消息
 ```bash
+# 查看可用 skills
+uv run kodax_agent.py
+
+# 执行 skill
 uv run kodax_agent.py /commit
-```
-
-**`/review`**: 代码审查
-```bash
-uv run kodax_agent.py /review src/main.py
-```
-
-**`/explain`**: 解释代码
-```bash
 uv run kodax_agent.py /explain kodax_agent.py
-```
-
-**`/refactor`**: 重构建议
-```bash
-uv run kodax_agent.py /refactor --focus=performance src/utils.py
 ```
 
 ---

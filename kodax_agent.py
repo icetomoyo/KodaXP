@@ -664,16 +664,19 @@ class Session:
 def load_skills() -> dict:
     """动态加载 Skill
 
-    从 ~/.kodax/skills/ 目录加载所有 .py 文件，
-    查找以 skill_ 前缀命名的函数作为 Skill。
+    支持:
+    1. .py 文件: 查找 skill_ 前缀函数，提取 docstring 作为描述
+    2. .md 文件: 纯提示词 skill，文件内容作为系统提示
 
     Returns:
-        {skill_name: skill_function} 字典
+        {skill_name: {"func": function, "desc": description}} 字典
     """
     skills = {}
     if not SKILLS_DIR.exists():
         SKILLS_DIR.mkdir(parents=True, exist_ok=True)
         return skills
+
+    # 加载 .py 文件
     for sf in SKILLS_DIR.rglob("*.py"):
         try:
             spec = importlib.util.spec_from_file_location(sf.stem, sf)
@@ -681,9 +684,37 @@ def load_skills() -> dict:
             spec.loader.exec_module(module)
             for name, func in vars(module).items():
                 if name.startswith("skill_") and callable(func):
-                    skills[name[6:]] = func
+                    skill_name = name[6:]
+                    # 提取 docstring 第一行作为描述
+                    desc = ""
+                    if func.__doc__:
+                        desc = func.__doc__.strip().split("\n")[0][:60]
+                    skills[skill_name] = {"func": func, "desc": desc}
         except Exception as e:
             print(f"Warning: Failed to load skill {sf}: {e}")
+
+    # 加载 .md 文件 (纯提示词 skill)
+    for mf in SKILLS_DIR.rglob("*.md"):
+        skill_name = mf.stem
+        if skill_name in skills:
+            continue  # .py 优先
+        try:
+            content = mf.read_text(encoding="utf-8").strip()
+            # 提取第一行作为描述
+            first_line = content.split("\n")[0].lstrip("# ").strip()
+            desc = first_line[:60] or "(prompt skill)"
+            # 创建提示词 skill
+            def make_md_skill(prompt):
+                def skill(agent, args: str) -> str:
+                    full_prompt = prompt
+                    if args:
+                        full_prompt += f"\n\nContext: {args}"
+                    return agent.call_llm([{"role": "user", "content": full_prompt}])
+                return skill
+            skills[skill_name] = {"func": make_md_skill(content), "desc": desc}
+        except Exception as e:
+            print(f"Warning: Failed to load skill {mf}: {e}")
+
     return skills
 
 
@@ -733,8 +764,12 @@ def main():
         print("\nSkills:")
         skills = load_skills()
         if skills:
-            for name in skills:
-                print(f"  /{name}")
+            for name, info in skills.items():
+                desc = info["desc"] or ""
+                if desc:
+                    print(f"  /{name:<15} {desc}")
+                else:
+                    print(f"  /{name}")
         else:
             print("  (no skills installed in ~/.kodax/skills/)")
         sys.exit(0)
@@ -762,7 +797,7 @@ def main():
                     provider = PROVIDERS[self.provider]()
                     texts, _ = provider.stream(msgs, TOOLS, SYSTEM_PROMPT, self.thinking)
                     return texts[0]["text"] if texts else ""
-            result = skills[skill_name](AgentProxy(), skill_args)
+            result = skills[skill_name]["func"](AgentProxy(), skill_args)
             print(result)
             sys.exit(0)
         else:
