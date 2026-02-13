@@ -119,8 +119,8 @@ uv run kodax_agent.py --provider zhipu-coding --session 20260213_143000 "继续�
 
 ### 7. Skill 系统
 
+**创建测试 Skill（Linux/macOS）**:
 ```bash
-# 创建一个测试 Skill
 mkdir -p ~/.kodax/skills
 cat > ~/.kodax/skills/hello.py << 'EOF'
 def skill_hello(agent, args: str) -> str:
@@ -128,15 +128,47 @@ def skill_hello(agent, args: str) -> str:
     name = args.strip() or "朋友"
     return f"你好，{name}！我是 Kodax Agent。"
 EOF
+```
 
-# 测试 Skill
+**创建测试 Skill（Windows）**:
+```powershell
+# 使用 Python 创建 skill 文件
+uv run python -c "
+from pathlib import Path
+skills_dir = Path.home() / '.kodax' / 'skills'
+skills_dir.mkdir(parents=True, exist_ok=True)
+skill_content = '''def skill_hello(agent, args: str) -> str:
+    \"\"\"打招呼\"\"\"
+    name = args.strip() or \"朋友\"
+    return f\"你好，{name}！我是 Kodax Agent。\"
+'''
+(skills_dir / 'hello.py').write_text(skill_content, encoding='utf-8')
+print('Skill created!')
+"
+```
+
+**测试 Skill**:
+```bash
+# Linux/macOS
 uv run kodax_agent.py /hello
 uv run kodax_agent.py /hello World
 
-# 预期输出：
-# 你好，朋友！我是 Kodax Agent。
-# 你好，World！我是 Kodax Agent。
+# Windows Git Bash（注意：使用双斜杠避免路径转换）
+uv run kodax_agent.py //hello
+uv run kodax_agent.py //hello World
+
+# Windows PowerShell/CMD
+uv run kodax_agent.py /hello
 ```
+
+**预期输出**:
+```
+你好，朋友！我是 Kodax Agent。
+你好，World！我是 Kodax Agent。
+```
+
+> **注意**: 在 Windows Git Bash 中，`/hello` 会被解释为 Unix 路径并转换为 `C:/Program Files/Git/hello`。
+> 使用 `//hello`（双斜杠）可以避免这个问题。
 
 ### 8. 上下文压缩
 
