@@ -54,6 +54,93 @@ last_api_call_time = [0.0]  # 使用列表以便在闭包中修改
 # 流式输出锁（确保一个 Agent 的完整响应不被打断）
 stream_lock = threading.Lock()
 
+# 文件备份（用于 Undo 功能）
+FILE_BACKUPS: dict[str, str] = {}
+
+# ============ 上下文增强 ============
+def get_git_context() -> str:
+    """获取 Git 上下文信息（分支、状态）"""
+    try:
+        # 检查是否在 Git 仓库中
+        r = subprocess.run("git rev-parse --is-inside-work-tree", shell=True, capture_output=True, text=True, timeout=5)
+        if r.returncode != 0:
+            return ""
+
+        lines = []
+
+        # 获取分支名
+        r = subprocess.run("git branch --show-current", shell=True, capture_output=True, text=True, timeout=5)
+        if r.returncode == 0 and r.stdout.strip():
+            lines.append(f"Git Branch: {r.stdout.strip()}")
+
+        # 获取状态摘要
+        r = subprocess.run("git status --short", shell=True, capture_output=True, text=True, timeout=5)
+        if r.returncode == 0 and r.stdout.strip():
+            status_lines = r.stdout.strip().split("\n")[:10]  # 最多 10 条
+            lines.append(f"Git Status:\n" + "\n".join(f"  {s}" for s in status_lines))
+            if len(r.stdout.strip().split("\n")) > 10:
+                lines.append("  ... (more changes)")
+
+        return "\n".join(lines) if lines else ""
+    except Exception:
+        return ""
+
+
+def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
+    """获取项目结构快照"""
+    try:
+        cwd = Path.cwd()
+        ignore_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist", "build", ".idea", ".vscode"}
+        ignore_exts = {".pyc", ".pyo", ".so", ".dll", ".exe", ".bin"}
+
+        lines = [f"Project: {cwd.name}"]
+
+        file_count = 0
+        for root, dirs, files in os.walk(cwd):
+            # 过滤忽略目录
+            dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
+
+            # 计算深度
+            depth = len(Path(root).relative_to(cwd).parts)
+            if depth > max_depth:
+                continue
+
+            # 显示目录结构
+            indent = "  " * depth
+            rel_dir = Path(root).relative_to(cwd)
+            if str(rel_dir) != ".":
+                lines.append(f"{indent}{rel_dir}/")
+
+            # 显示文件（限制数量）
+            for f in sorted(files)[:20]:
+                if Path(f).suffix not in ignore_exts:
+                    lines.append(f"{indent}  {f}")
+                    file_count += 1
+                    if file_count >= max_files:
+                        lines.append("  ... (more files)")
+                        return "\n".join(lines)
+
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def undo_last_edit() -> str:
+    """撤销最近一次文件修改"""
+    if not FILE_BACKUPS:
+        return "No backups available. Nothing to undo."
+
+    # 获取最后一个备份
+    path, content = list(FILE_BACKUPS.items())[-1]
+    try:
+        Path(path).write_text(content, encoding="utf-8")
+        # 移除已恢复的备份
+        del FILE_BACKUPS[path]
+        return f"Restored: {path}"
+    except Exception as e:
+        return f"Undo failed: {e}"
+
+
 # ============ 工具定义 ============
 TOOLS = [
     {"name": "read", "description": "Read the contents of a file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
@@ -62,6 +149,7 @@ TOOLS = [
     {"name": "bash", "description": "Execute a shell command.", "input_schema": {"type": "object", "properties": {"command": {"type": "string"}, "timeout": {"type": "number"}}, "required": ["command"]}},
     {"name": "glob", "description": "Find files matching a glob pattern.", "input_schema": {"type": "object", "properties": {"pattern": {"type": "string"}, "path": {"type": "string"}}, "required": ["pattern"]}},
     {"name": "grep", "description": "Search for a pattern in files.", "input_schema": {"type": "object", "properties": {"pattern": {"type": "string"}, "path": {"type": "string"}, "ignore_case": {"type": "boolean"}}, "required": ["pattern", "path"]}},
+    {"name": "undo", "description": "Undo the last file modification. Restores the most recently backed up file.", "input_schema": {"type": "object", "properties": {}, "required": []}},
 ]
 
 SYSTEM_PROMPT = """You are a helpful coding assistant. You can read, write, and edit files, and execute shell commands.
@@ -75,7 +163,14 @@ When executing commands:
 - Be careful with destructive operations
 - Prefer read-only operations when possible
 
-Always explain what you're doing before taking action."""
+For multi-step tasks:
+- Track your progress by listing what you've done and what's next
+- Break complex tasks into smaller steps
+- Summarize progress periodically
+
+Always explain what you're doing before taking action.
+
+{context}"""
 
 
 # ============ Rate Limit 控制 ============
@@ -407,6 +502,9 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
                 return path.read_text(encoding="utf-8") if path.exists() else f"Error: File not found: {path}"
             case "write":
                 path = Path(input_data["path"])
+                # 备份现有文件
+                if path.exists():
+                    FILE_BACKUPS[str(path)] = path.read_text(encoding="utf-8")
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(input_data["content"], encoding="utf-8")
                 return f"File written: {path}"
@@ -415,8 +513,12 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
                 if not path.exists(): return f"Error: File not found: {path}"
                 content = path.read_text(encoding="utf-8")
                 if input_data["old_string"] not in content: return f"Error: String not found"
+                # 备份文件
+                FILE_BACKUPS[str(path)] = content
                 path.write_text(content.replace(input_data["old_string"], input_data["new_string"], 1), encoding="utf-8")
                 return f"File edited: {path}"
+            case "undo":
+                return undo_last_edit()
             case "bash":
                 timeout = input_data.get("timeout", 30)
                 try:
@@ -992,6 +1094,23 @@ def main():
         print(f"Failed to initialize provider: {e}")
         sys.exit(1)
 
+    # 构建上下文（Git + 项目快照）
+    context_parts = []
+
+    # Git 上下文（仅新会话时获取）
+    if not session_id:
+        git_ctx = get_git_context()
+        if git_ctx:
+            context_parts.append(git_ctx)
+
+        # 项目快照（仅新会话时获取，避免重复）
+        snapshot = get_project_snapshot()
+        if snapshot:
+            context_parts.append(snapshot)
+
+    # 组装系统提示词
+    system_prompt = SYSTEM_PROMPT.format(context="\n\n".join(context_parts) if context_parts else "")
+
     # 添加用户消息
     session.messages.append({"role": "user", "content": user_prompt})
 
@@ -1009,7 +1128,7 @@ def main():
             messages = compact_messages(session.messages)
 
             # 流式调用
-            text_blocks, tool_blocks = provider.stream(messages, TOOLS, SYSTEM_PROMPT, args.thinking)
+            text_blocks, tool_blocks = provider.stream(messages, TOOLS, system_prompt, args.thinking)
 
             # 构建 assistant content
             assistant_content = []

@@ -720,7 +720,179 @@ uv run kodax_agent.py --session list
 
 ---
 
-## 8. Agent Team (P2) ✅ 已完成
+## 8. 上下文增强 (P1) ✅ 已完成
+
+### 8.1 Git Context 自动注入
+
+自动检测当前 Git 仓库状态并注入到系统提示词中，帮助 Agent 了解当前工作上下文。
+
+**实现**:
+```python
+def get_git_context() -> str:
+    """获取 Git 上下文信息（分支、状态）"""
+    try:
+        # 检查是否在 Git 仓库中
+        r = subprocess.run("git rev-parse --is-inside-work-tree", shell=True, ...)
+        if r.returncode != 0:
+            return ""
+
+        lines = []
+
+        # 获取分支名
+        r = subprocess.run("git branch --show-current", shell=True, ...)
+        if r.returncode == 0 and r.stdout.strip():
+            lines.append(f"Git Branch: {r.stdout.strip()}")
+
+        # 获取状态摘要（最多 10 条）
+        r = subprocess.run("git status --short", shell=True, ...)
+        if r.returncode == 0 and r.stdout.strip():
+            status_lines = r.stdout.strip().split("\n")[:10]
+            lines.append(f"Git Status:\n" + "\n".join(f"  {s}" for s in status_lines))
+
+        return "\n".join(lines) if lines else ""
+    except Exception:
+        return ""
+```
+
+**使用效果**:
+```
+System Prompt:
+...
+Git Branch: main
+Git Status:
+   M kodax_agent.py
+  ?? test_new_feature.py
+```
+
+**特性**:
+- 仅在新会话时获取（避免重复注入）
+- 非 Git 仓库不报错，静默跳过
+- 最多显示 10 条状态，避免上下文过长
+
+### 8.2 项目快照
+
+在会话开始时自动获取项目目录结构，帮助 Agent 快速了解项目布局。
+
+**实现**:
+```python
+def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
+    """获取项目结构快照"""
+    try:
+        cwd = Path.cwd()
+        ignore_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist", "build"}
+        ignore_exts = {".pyc", ".pyo", ".so", ".dll", ".exe"}
+
+        lines = [f"Project: {cwd.name}"]
+        file_count = 0
+
+        for root, dirs, files in os.walk(cwd):
+            dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
+            depth = len(Path(root).relative_to(cwd).parts)
+            if depth > max_depth:
+                continue
+
+            # 显示目录和文件...
+            if file_count >= max_files:
+                lines.append("  ... (more files)")
+                break
+
+        return "\n".join(lines)
+    except Exception:
+        return ""
+```
+
+**使用效果**:
+```
+Project: KodaX
+  README.md
+  pyproject.toml
+  kodax_agent.py
+  docs/
+    DESIGN.md
+    TESTING.md
+```
+
+**特性**:
+- 限制深度（默认 2 层）和文件数（默认 50）
+- 自动忽略常见目录和二进制文件
+- 仅在新会话时获取
+
+### 8.3 Todo 自追踪
+
+通过系统提示词引导 Agent 自动追踪多步骤任务进度。
+
+**系统提示词增强**:
+```
+For multi-step tasks:
+- Track your progress by listing what you've done and what's next
+- Break complex tasks into smaller steps
+- Summarize progress periodically
+```
+
+**示例输出**:
+```
+[Assistant] I'll help you implement this feature. Let me break it down:
+
+1. ✅ Read the existing code structure
+2. ✅ Add the new function
+3. 🔄 Write tests
+4. ⏳ Update documentation
+
+Now working on step 3: Writing tests...
+```
+
+### 8.4 简单 Undo
+
+在修改文件前自动备份，支持撤销最近的文件修改。
+
+**实现**:
+```python
+# 全局备份存储
+FILE_BACKUPS: dict[str, str] = {}
+
+# 在 write/edit 前备份
+case "write":
+    path = Path(input_data["path"])
+    if path.exists():
+        FILE_BACKUPS[str(path)] = path.read_text(encoding="utf-8")
+    # ... 执行写入
+
+case "edit":
+    # ... 验证后
+    FILE_BACKUPS[str(path)] = content  # 备份原内容
+    # ... 执行编辑
+
+# undo 工具
+def undo_last_edit() -> str:
+    """撤销最近一次文件修改"""
+    if not FILE_BACKUPS:
+        return "No backups available."
+
+    path, content = list(FILE_BACKUPS.items())[-1]
+    Path(path).write_text(content, encoding="utf-8")
+    del FILE_BACKUPS[path]
+    return f"Restored: {path}"
+```
+
+**工具定义**:
+```python
+{"name": "undo", "description": "Undo the last file modification.", "input_schema": {"type": "object", "properties": {}, "required": []}}
+```
+
+**使用示例**:
+```bash
+# Agent 执行 write/edit 后可以撤销
+uv run kodax_agent.py "修改 kodax_agent.py 添加新功能，然后撤销"
+```
+
+**限制**:
+- 仅在当前会话有效（重启后清空）
+- 只保留最新一次修改的备份
+- 不适用于批量操作
+
+---
+
+## 9. Agent Team (P2) ✅ 已完成
 
 ### 8.1 使用场景
 
@@ -839,7 +1011,7 @@ API_MIN_INTERVAL = 0.5   # API 调用最小间隔（秒）
 
 ---
 
-## 9. 不实现的功能
+## 10. 不实现的功能
 
 以下功能暂不考虑，原因如下：
 
@@ -853,7 +1025,7 @@ API_MIN_INTERVAL = 0.5   # API 调用最小间隔（秒）
 
 ---
 
-## 10. 快速开始
+## 11. 快速开始
 
 ### 10.1 安装
 
@@ -896,7 +1068,7 @@ uv run kodax_agent.py --session resume "继续修改"
 
 ---
 
-## 11. 文件结构
+## 12. 文件结构
 
 ```
 koda-agent/

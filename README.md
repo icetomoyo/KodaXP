@@ -33,6 +33,8 @@ Kodax:           ~800 LOC, uv sync && go
 - **Parallel Tools** - Execute multiple tools simultaneously
 - **Skills** - Extend with custom Python functions
 - **Thinking Mode** - Deep reasoning for complex tasks (supported providers)
+- **Context Aware** - Auto-injects Git status and project structure
+- **Undo Support** - Revert file modifications with the undo tool
 
 ## Quick Start
 

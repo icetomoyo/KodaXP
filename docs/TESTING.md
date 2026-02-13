@@ -190,6 +190,82 @@ uv run kodax_agent.py --provider zhipu-coding --session compress_test "
 
 ---
 
+## 上下文增强测试 (P1.5)
+
+### 11. Git Context 自动注入
+
+```bash
+# 在 Git 仓库中测试
+uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支和状态"
+
+# 预期：Agent 能够直接回答当前分支，因为上下文已注入
+```
+
+```bash
+# 在非 Git 目录测试
+cd /tmp
+uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支"
+
+# 预期：Agent 不会因为缺少 Git 信息而报错
+```
+
+### 12. 项目快照
+
+```bash
+# 新会话时自动获取项目结构
+uv run kodax_agent.py --provider zhipu-coding "描述这个项目的结构"
+
+# 预期：Agent 能够基于注入的快照快速了解项目布局
+```
+
+```bash
+# 恢复会话不会重复获取快照
+uv run kodax_agent.py --provider zhipu-coding --session resume "继续"
+
+# 预期：不会重复注入项目结构信息
+```
+
+### 13. Todo 自追踪
+
+```bash
+# 测试多步骤任务追踪
+uv run kodax_agent.py --provider zhipu-coding "
+请帮我完成以下任务：
+1. 创建 test_todo.txt 文件
+2. 写入 'Hello Todo'
+3. 读取并确认内容
+4. 删除该文件
+"
+
+# 预期：Agent 会逐步执行并追踪进度
+```
+
+### 14. 简单 Undo
+
+```bash
+# 测试 Undo 功能
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+1. 创建 test_undo.txt，内容是 'Original Content'
+2. 修改 test_undo.txt 为 'Modified Content'
+3. 使用 undo 工具撤销修改
+4. 读取 test_undo.txt 确认内容
+"
+
+# 预期：
+# 1. 文件创建成功
+# 2. 内容修改成功
+# 3. undo 执行后恢复为 'Original Content'
+```
+
+```bash
+# 测试 Undo 无备份情况
+uv run kodax_agent.py --provider zhipu-coding "使用 undo 工具"
+
+# 预期：返回 "No backups available. Nothing to undo."
+```
+
+---
+
 ## P2 功能测试
 
 ### 9. 并行工具执行
@@ -318,6 +394,10 @@ uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "tes
 | Agent Team | `uv run kodax_agent.py --team "..."` | ☐ |
 | Skill 调用 | `uv run kodax_agent.py /skill_name` | ☐ |
 | 多 Provider | 切换不同 --provider 测试 | ☐ |
+| Git Context | `uv run kodax_agent.py "当前分支是什么"` | ☐ |
+| 项目快照 | `uv run kodax_agent.py "项目结构是什么"` | ☐ |
+| Todo 追踪 | 多步骤任务测试 | ☐ |
+| Undo | 修改后撤销测试 | ☐ |
 
 ---
 
