@@ -139,7 +139,8 @@ class AnthropicProvider(Provider):
                     if not text_blocks or text_blocks[-1].get("text") != block.text:
                         text_blocks.append({"type": "text", "text": block.text})
                 elif block.type == "tool_use":
-                    tool_blocks.append(block)
+                    # 转换为 dict 以统一处理
+                    tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
 
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
@@ -303,7 +304,8 @@ class AnthropicCompatProvider(Provider):
                     if not text_blocks or text_blocks[-1].get("text") != block.text:
                         text_blocks.append({"type": "text", "text": block.text})
                 elif block.type == "tool_use":
-                    tool_blocks.append(block)
+                    # 转换为 dict 以统一处理
+                    tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
 
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
