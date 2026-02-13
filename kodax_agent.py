@@ -646,6 +646,17 @@ def main():
     args = parse_args()
     user_prompt = " ".join(args.prompt)
 
+    # 会话列表（不需要 prompt）
+    if args.session == "list":
+        sessions = Session.list_all()
+        if sessions:
+            print("Sessions:")
+            for s in sessions[:10]:
+                print(f"  {s}")
+        else:
+            print("No sessions found.")
+        sys.exit(0)
+
     if not user_prompt:
         print("Kodax Agent - 极致轻量化 Coding Agent\n")
         print("Usage: uv run kodax_agent.py \"your task\"")
@@ -669,13 +680,7 @@ def main():
 
     # 会话管理
     session_id = None
-    if args.session == "list":
-        sessions = Session.list_all()
-        print("Sessions:")
-        for s in sessions[:10]:
-            print(f"  {s}")
-        sys.exit(0)
-    elif args.session == "resume":
+    if args.session == "resume":
         sessions = Session.list_all()
         session_id = sessions[0] if sessions else None
     elif args.session:
