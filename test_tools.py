@@ -1,0 +1,183 @@
+"""测试 kodax_agent P1 + P2 功能"""
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.path.insert(0, '.')
+
+from kodax_agent import execute_tool, estimate_tokens, compact_messages, Session, load_skills, PROVIDERS
+from kodax_agent import execute_tools_parallel, run_subagent
+from pathlib import Path
+import tempfile
+import os
+import json
+
+def test_tools():
+    print("=" * 50)
+    print("Testing tools")
+    print("=" * 50)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # read/write
+        test_file = os.path.join(tmpdir, "test.txt")
+        result = execute_tool("write", {"path": test_file, "content": "Hello"}, set())
+        assert "written" in result.lower()
+        result = execute_tool("read", {"path": test_file}, set())
+        assert result == "Hello"
+        print("  ✓ read/write")
+
+        # edit
+        result = execute_tool("edit", {"path": test_file, "old_string": "Hello", "new_string": "World"}, set())
+        assert "edited" in result.lower()
+        print("  ✓ edit")
+
+        # glob
+        result = execute_tool("glob", {"pattern": "*.txt", "path": tmpdir}, set())
+        assert "test.txt" in result
+        print("  ✓ glob")
+
+        # grep
+        result = execute_tool("grep", {"pattern": "World", "path": tmpdir}, set())
+        assert "World" in result
+        print("  ✓ grep")
+
+        # bash
+        result = execute_tool("bash", {"command": "echo test"}, set())
+        assert "test" in result
+        print("  ✓ bash")
+
+
+def test_token_estimation():
+    print("\n" + "=" * 50)
+    print("Testing token estimation")
+    print("=" * 50)
+
+    # 简单消息
+    messages = [{"role": "user", "content": "x" * 100}]
+    tokens = estimate_tokens(messages)
+    assert tokens == 25  # 100 / 4
+    print(f"  Simple message: {tokens} tokens ✓")
+
+    # 复杂消息
+    messages = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": [{"type": "text", "text": "Hi there"}]}
+    ]
+    tokens = estimate_tokens(messages)
+    print(f"  Complex message: {tokens} tokens ✓")
+
+
+def test_compact():
+    print("\n" + "=" * 50)
+    print("Testing context compaction")
+    print("=" * 50)
+
+    # 创建大量消息
+    messages = [{"role": "user", "content": "x" * 10000} for _ in range(20)]
+    original_tokens = estimate_tokens(messages)
+    print(f"  Before: {original_tokens} tokens")
+
+    compressed = compact_messages(messages, max_tokens=10000)
+    compressed_tokens = estimate_tokens(compressed)
+    print(f"  After: {compressed_tokens} tokens")
+
+    assert compressed_tokens < original_tokens
+    print("  ✓ Compaction works")
+
+
+def test_session():
+    print("\n" + "=" * 50)
+    print("Testing session management")
+    print("=" * 50)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 修改 SESSIONS_DIR
+        import kodax_agent
+        original_dir = kodax_agent.SESSIONS_DIR
+        kodax_agent.SESSIONS_DIR = Path(tmpdir)
+
+        try:
+            session = kodax_agent.Session(id="test_session", messages=[])
+            session.messages.append({"role": "user", "content": "Hello"})
+            session.save()
+
+            # 重新加载
+            loaded = kodax_agent.Session.load("test_session")
+            assert len(loaded.messages) == 1
+            assert loaded.messages[0]["content"] == "Hello"
+            print("  ✓ Session save/load")
+        finally:
+            kodax_agent.SESSIONS_DIR = original_dir
+
+
+def test_providers():
+    print("\n" + "=" * 50)
+    print("Testing provider registry")
+    print("=" * 50)
+
+    expected = {"anthropic", "kimi", "kimi-code", "qwen", "openai", "zhipu", "zhipu-coding"}
+    actual = set(PROVIDERS.keys())
+
+    assert expected == actual, f"Expected {expected}, got {actual}"
+    print(f"  Available providers: {', '.join(sorted(actual))}")
+    print("  ✓ All providers registered")
+
+
+def test_skills():
+    print("\n" + "=" * 50)
+    print("Testing skill system")
+    print("=" * 50)
+
+    skills = load_skills()
+    print(f"  Loaded skills: {list(skills.keys()) or '(none)'}")
+    print("  ✓ Skill loading works")
+
+
+def test_parallel_execution():
+    print("\n" + "=" * 50)
+    print("Testing parallel tool execution (P2)")
+    print("=" * 50)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 创建测试文件
+        for i in range(3):
+            test_file = os.path.join(tmpdir, f"test{i}.txt")
+            execute_tool("write", {"path": test_file, "content": f"Content {i}"}, set())
+
+        # 并行读取多个文件
+        tool_calls = [
+            {"name": "read", "input": {"path": os.path.join(tmpdir, "test0.txt")}, "id": "1"},
+            {"name": "read", "input": {"path": os.path.join(tmpdir, "test1.txt")}, "id": "2"},
+            {"name": "read", "input": {"path": os.path.join(tmpdir, "test2.txt")}, "id": "3"},
+        ]
+
+        results = execute_tools_parallel(tool_calls, set())
+        assert len(results) == 3
+        assert "Content 0" in results[0]
+        assert "Content 1" in results[1]
+        assert "Content 2" in results[2]
+        print("  ✓ Parallel execution works")
+
+
+def test_subagent():
+    print("\n" + "=" * 50)
+    print("Testing sub-agent (P2)")
+    print("=" * 50)
+
+    # 测试子 agent 函数存在（实际调用需要 API key）
+    assert callable(run_subagent)
+    print("  ✓ Sub-agent function available")
+
+
+if __name__ == "__main__":
+    test_tools()
+    test_token_estimation()
+    test_compact()
+    test_session()
+    test_providers()
+    test_skills()
+    test_parallel_execution()
+    test_subagent()
+
+    print("\n" + "=" * 50)
+    print("ALL P1 + P2 TESTS PASSED!")
+    print("=" * 50)
