@@ -27,6 +27,7 @@ import json
 import time
 import importlib.util
 import asyncio
+import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Iterator
@@ -39,6 +40,19 @@ DEFAULT_CONFIRM_TOOLS = {"bash", "write", "edit"}
 KODAX_DIR = Path.home() / ".kodax"
 SKILLS_DIR = KODAX_DIR / "skills"
 SESSIONS_DIR = KODAX_DIR / "sessions"
+
+# 并行 Agent 配置
+STAGGER_DELAY = 1.0  # Agent 启动间隔（秒）
+MAX_RETRIES = 3      # Rate limit 最大重试次数
+RETRY_BASE_DELAY = 2 # 重试基础延迟（秒）
+API_MIN_INTERVAL = 0.5  # API 调用最小间隔（秒）
+
+# 全局 API 调用锁（用于 Rate Limit 控制）
+api_lock = threading.Lock()
+last_api_call_time = [0.0]  # 使用列表以便在闭包中修改
+
+# 流式输出锁（确保一个 Agent 的完整响应不被打断）
+stream_lock = threading.Lock()
 
 # ============ 工具定义 ============
 TOOLS = [
@@ -62,6 +76,23 @@ When executing commands:
 - Prefer read-only operations when possible
 
 Always explain what you're doing before taking action."""
+
+
+# ============ Rate Limit 控制 ============
+def rate_limited_call(func, *args, **kwargs):
+    """带 Rate Limit 控制的 API 调用
+
+    使用全局锁确保 API 调用串行化，并保持最小间隔。
+    """
+    global last_api_call_time
+    with api_lock:
+        # 确保最小间隔
+        elapsed = time.time() - last_api_call_time[0]
+        if elapsed < API_MIN_INTERVAL:
+            time.sleep(API_MIN_INTERVAL - elapsed)
+        result = func(*args, **kwargs)
+        last_api_call_time[0] = time.time()
+        return result
 
 
 # ============ Provider 抽象 ============
@@ -435,58 +466,161 @@ def execute_tools_parallel(tool_calls: list, confirm_tools: set) -> list:
     return asyncio.run(execute_tools_async(tool_calls, confirm_tools))
 
 
-def run_subagent(task: str, provider_name: str, thinking: bool = False, max_rounds: int = 5) -> str:
-    """运行子 Agent（简化版，用于并行任务）
+def is_rate_limit_error(error: Exception) -> bool:
+    """检测是否为速率限制错误"""
+    error_str = str(error).lower()
+    rate_limit_keywords = ["rate", "limit", "速率", "频率", "1302", "429", "too many"]
+    return any(kw in error_str for kw in rate_limit_keywords)
+
+
+class StreamingSubAgent:
+    """实时流式输出的子 Agent
+
+    使用 stream_lock 确保一个 Agent 的完整流式响应不被打断，
+    同时保持 Rate Limit 控制。
+    """
+    def __init__(self, provider_name: str, thinking: bool = False, agent_id: int = 0, task_desc: str = ""):
+        self.provider_name = provider_name
+        self.thinking = thinking
+        self.agent_id = agent_id
+        self.task_desc = task_desc
+        self.provider = None
+        self.messages = []
+
+    def _init_provider(self):
+        """延迟初始化 Provider"""
+        if self.provider is None:
+            self.provider = PROVIDERS[self.provider_name]()
+        return self.provider
+
+    def _stream_with_lock(self, messages, tools, system):
+        """带输出锁的流式 API 调用"""
+        provider = self._init_provider()
+
+        # 获取 stream_lock 确保流式输出不被打断
+        with stream_lock:
+            # 打印 Agent 标识
+            print(f"\n\033[36m[Agent {self.agent_id}]\033[0m \033[90m{self.task_desc[:50]}{'...' if len(self.task_desc) > 50 else ''}\033[0m")
+            # 注意：不在这里打印 [Assistant]，provider.stream() 会打印
+
+            # 直接流式输出（不重定向 stdout）
+            return provider.stream(messages, tools, system, self.thinking)
+
+    def _call_api_with_rate_limit(self, messages, tools, system):
+        """带 Rate Limit 控制的 API 调用"""
+        def do_call():
+            return self._stream_with_lock(messages, tools, system)
+
+        # 使用 rate_limited_call 确保 API 调用串行化
+        return rate_limited_call(do_call)
+
+    def run(self, task: str, max_rounds: int = 5) -> dict:
+        """运行子 Agent
+
+        Returns:
+            {"result": str} - 结果文本（输出已是实时的）
+        """
+        self.messages = [{"role": "user", "content": task}]
+        sub_system = SYSTEM_PROMPT + "\n\nYou are a sub-agent working on a specific task. Focus only on your assigned task and provide a concise summary when done."
+
+        try:
+            provider = self._init_provider()
+        except Exception as e:
+            return {"result": f"[SubAgent Error] Failed to init provider: {e}"}
+
+        for _ in range(max_rounds):
+            try:
+                # 使用带 Rate Limit 的 API 调用（实时流式输出）
+                text_blocks, tool_blocks = self._call_api_with_rate_limit(
+                    self.messages, TOOLS, sub_system
+                )
+
+                # 构建 assistant content
+                assistant_content = []
+                for b in text_blocks:
+                    assistant_content.append({"type": "text", "text": b["text"]})
+                for b in tool_blocks:
+                    assistant_content.append({"type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"]})
+                self.messages.append({"role": "assistant", "content": assistant_content})
+
+                if not tool_blocks:
+                    return {
+                        "result": text_blocks[-1]["text"] if text_blocks else "Task completed (no output)"
+                    }
+
+                # 执行工具（工具执行不需要 stream_lock）
+                tool_results = []
+                for tc in tool_blocks:
+                    result = execute_tool(tc["name"], tc["input"], set())
+                    tool_results.append({"type": "tool_result", "tool_use_id": tc["id"], "content": result})
+
+                self.messages.append({"role": "user", "content": tool_results})
+
+            except Exception as e:
+                if is_rate_limit_error(e):
+                    for retry in range(MAX_RETRIES):
+                        delay = RETRY_BASE_DELAY * (2 ** retry)
+                        with stream_lock:
+                            print(f"\n\033[33m[Agent {self.agent_id}]\033[0m Rate limited, retry {retry + 1}/{MAX_RETRIES} in {delay}s...")
+                        time.sleep(delay)
+                        try:
+                            text_blocks, tool_blocks = self._call_api_with_rate_limit(
+                                self.messages, TOOLS, sub_system
+                            )
+                            assistant_content = []
+                            for b in text_blocks:
+                                assistant_content.append({"type": "text", "text": b["text"]})
+                            for b in tool_blocks:
+                                assistant_content.append({"type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"]})
+                            self.messages.append({"role": "assistant", "content": assistant_content})
+                            if not tool_blocks:
+                                return {
+                                    "result": text_blocks[-1]["text"] if text_blocks else "Task completed (no output)"
+                                }
+                            tool_results = []
+                            for tc in tool_blocks:
+                                result = execute_tool(tc["name"], tc["input"], set())
+                                tool_results.append({"type": "tool_result", "tool_use_id": tc["id"], "content": result})
+                            self.messages.append({"role": "user", "content": tool_results})
+                            break
+                        except Exception as retry_e:
+                            if retry == MAX_RETRIES - 1:
+                                return {"result": f"[SubAgent Error] Rate limit retry failed: {retry_e}"}
+                            continue
+                else:
+                    return {"result": f"[SubAgent Error] {e}"}
+
+        return {"result": "[SubAgent] Max iterations reached"}
+
+
+def run_subagent(task: str, provider_name: str, thinking: bool = False, max_rounds: int = 5, stagger_delay: float = 0, agent_id: int = 0, task_desc: str = "") -> dict:
+    """运行子 Agent（实时流式输出版）
 
     Args:
         task: 子任务描述
         provider_name: Provider 名称
         thinking: 是否启用 thinking mode
         max_rounds: 最大轮数
+        stagger_delay: 启动延迟（秒）
+        agent_id: Agent 编号（用于显示）
+        task_desc: 任务描述（用于显示）
 
     Returns:
-        子 Agent 的最终文本结果
+        {"result": str} - 结果文本
     """
-    try:
-        provider = PROVIDERS[provider_name]()
-    except Exception as e:
-        return f"[SubAgent Error] Failed to init provider: {e}"
+    # 启动延迟
+    if stagger_delay > 0:
+        time.sleep(stagger_delay)
 
-    messages = [{"role": "user", "content": task}]
-    sub_system = SYSTEM_PROMPT + "\n\nYou are a sub-agent working on a specific task. Focus only on your assigned task and provide a concise summary when done."
-
-    for _ in range(max_rounds):
-        try:
-            text_blocks, tool_blocks = provider.stream(messages, TOOLS, sub_system, thinking)
-
-            # 构建 assistant content
-            assistant_content = []
-            for b in text_blocks:
-                assistant_content.append({"type": "text", "text": b["text"]})
-            for b in tool_blocks:
-                assistant_content.append({"type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"]})
-            messages.append({"role": "assistant", "content": assistant_content})
-
-            if not tool_blocks:
-                # 返回最终文本
-                return text_blocks[-1]["text"] if text_blocks else "Task completed (no output)"
-
-            # 执行工具（子 agent 不需要确认）
-            tool_results = []
-            for tc in tool_blocks:
-                result = execute_tool(tc["name"], tc["input"], set())
-                tool_results.append({"type": "tool_result", "tool_use_id": tc["id"], "content": result})
-
-            messages.append({"role": "user", "content": tool_results})
-
-        except Exception as e:
-            return f"[SubAgent Error] {e}"
-
-    return "[SubAgent] Max iterations reached"
+    agent = StreamingSubAgent(provider_name, thinking, agent_id, task_desc)
+    return agent.run(task, max_rounds)
 
 
 async def run_parallel_agents_async(tasks: list, provider_name: str, thinking: bool = False) -> list:
     """并行运行多个子 Agent
+
+    使用错开的启动延迟避免同时请求 API 触发速率限制。
+    流式输出通过 stream_lock 串行化以避免交错。
 
     Args:
         tasks: 任务列表
@@ -494,13 +628,23 @@ async def run_parallel_agents_async(tasks: list, provider_name: str, thinking: b
         thinking: 是否启用 thinking mode
 
     Returns:
-        每个任务的结果列表
+        每个任务的结果列表 [{"result": str}, ...]
     """
     loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
         futures = [
-            loop.run_in_executor(executor, run_subagent, task, provider_name, thinking)
-            for task in tasks
+            loop.run_in_executor(
+                executor,
+                run_subagent,
+                task,
+                provider_name,
+                thinking,
+                10,  # max_rounds - 给子 Agent 更多轮次完成复杂任务
+                i * STAGGER_DELAY,  # stagger_delay
+                i + 1,  # agent_id (1-based)
+                task  # task_desc
+            )
+            for i, task in enumerate(tasks)
         ]
         return await asyncio.gather(*futures)
 
@@ -514,9 +658,10 @@ def run_team(tasks: list, provider_name: str, thinking: bool = False) -> list:
         thinking: 是否启用 thinking mode
 
     Returns:
-        每个任务的结果列表
+        每个任务的结果列表 [{"result": str}, ...]
     """
     print(f"\n\033[36m[Kodax Team]\033[0m Starting {len(tasks)} parallel agents...")
+    print(f"\033[36m[Kodax Team]\033[0m Running tasks (streaming output is serialized for clarity)...")
     results = asyncio.run(run_parallel_agents_async(tasks, provider_name, thinking))
     return results
 
@@ -815,20 +960,26 @@ def main():
             print("Error: No tasks specified for --team")
             sys.exit(1)
 
-        print(f"\033[36m[Kodax Team]\033[0m Running {len(tasks)} parallel agents with {args.provider}")
+        print(f"\033[36m[Kodax Team]\033[0m Running {len(tasks)} tasks with {args.provider}")
         if args.thinking:
             print(f"\033[36m[Kodax Team]\033[0m Thinking mode enabled")
-        print()
 
         results = run_team(tasks, args.provider, args.thinking)
 
-        print("\n" + "=" * 50)
-        print("\033[36m[Kodax Team]\033[0m Results:")
-        print("=" * 50)
-        for i, (task, result) in enumerate(zip(tasks, results), 1):
-            print(f"\n\033[33m[Task {i}]\033[0m {task[:60]}{'...' if len(task) > 60 else ''}")
-            print(f"\033[32m[Result]\033[0m {result[:500]}{'...' if len(result) > 500 else ''}")
-        print("\n\033[32m[Kodax Team]\033[0m All tasks completed!")
+        # 显示结果摘要（输出已是实时的）
+        print("\n" + "=" * 60)
+        print(f"\033[32m[Kodax Team]\033[0m Results Summary:")
+        print("=" * 60)
+        for i, (task, result_dict) in enumerate(zip(tasks, results), 1):
+            result = result_dict.get("result", "")
+            print(f"\n\033[33m[Task {i}]\033[0m {task[:50]}{'...' if len(task) > 50 else ''}")
+            if result:
+                # 只显示结果的最后部分作为摘要
+                result_preview = result[-300:] if len(result) > 300 else result
+                print(f"\033[32m[Result]\033[0m ...{result_preview}")
+
+        print("\n" + "=" * 60)
+        print(f"\033[32m[Kodax Team]\033[0m All {len(tasks)} tasks completed!")
         sys.exit(0)
 
     # 初始化 Provider

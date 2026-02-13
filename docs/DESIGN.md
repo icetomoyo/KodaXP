@@ -783,6 +783,60 @@ uv run kodax_agent.py --team "分析 src/ 目录结构,检查测试覆盖率,查
 uv run kodax_agent.py --provider kimi-code --thinking --team "代码审查,性能分析"
 ```
 
+### 8.4 流式输出优化 ✅
+
+**问题**：并行 Agent 同时执行时存在两个挑战：
+1. **Rate Limit**：多个 Agent 同时请求 API 触发速率限制
+2. **输出交错**：多个 Agent 同时打印导致输出混乱
+
+**解决方案**：两层锁机制
+
+```python
+# 全局锁
+api_lock = threading.Lock()       # Rate Limit 控制
+stream_lock = threading.Lock()    # 流式输出锁
+```
+
+**执行流程**：
+```
+Agent 1: [工具执行] → 等待 stream_lock → [API + 流式输出] → 释放
+Agent 2: [工具执行] → 等待 stream_lock → [API + 流式输出] → 释放
+Agent 3: [工具执行] → 等待 stream_lock → [API + 流式输出] → 释放
+         ↑ 并行      ↑ 串行化输出         ↑ 实时流式
+```
+
+**StreamingSubAgent 实现**：
+
+```python
+class StreamingSubAgent:
+    """实时流式输出的子 Agent"""
+
+    def _stream_with_lock(self, messages, tools, system):
+        """带输出锁的流式 API 调用"""
+        provider = self._init_provider()
+
+        with stream_lock:
+            # 打印 Agent 标识
+            print(f"\n[Agent {self.agent_id}] {self.task_desc[:50]}...")
+            # 直接流式输出（provider 会打印 [Assistant]）
+            return provider.stream(messages, tools, system, self.thinking)
+
+    def _call_api_with_rate_limit(self, messages, tools, system):
+        """带 Rate Limit 控制的 API 调用"""
+        def do_call():
+            return self._stream_with_lock(messages, tools, system)
+        return rate_limited_call(do_call)
+```
+
+**配置参数**：
+
+```python
+STAGGER_DELAY = 1.0      # Agent 启动间隔（秒）
+MAX_RETRIES = 3          # Rate limit 最大重试次数
+RETRY_BASE_DELAY = 2     # 重试基础延迟（秒）
+API_MIN_INTERVAL = 0.5   # API 调用最小间隔（秒）
+```
+
 ---
 
 ## 9. 不实现的功能
