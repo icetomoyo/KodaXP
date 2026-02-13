@@ -57,6 +57,11 @@ stream_lock = threading.Lock()
 # 文件备份（用于 Undo 功能）
 FILE_BACKUPS: dict[str, str] = {}
 
+# 长时间运行状态文件
+FEATURES_FILE = "feature_list.json"
+PROGRESS_FILE = "PROGRESS.md"
+INIT_SCRIPT = "init.sh"
+
 # ============ 上下文增强 ============
 def get_git_context() -> str:
     """获取 Git 上下文信息（分支、状态）"""
@@ -141,6 +146,41 @@ def undo_last_edit() -> str:
         return f"Undo failed: {e}"
 
 
+def get_long_running_context() -> str:
+    """检测并加载长运行任务上下文
+
+    如果存在 feature_list.json，则认为是长运行模式，
+    加载 Feature List 和 Progress 到上下文中。
+    """
+    parts = []
+
+    # Feature List
+    features_path = Path(FEATURES_FILE)
+    if features_path.exists():
+        try:
+            features = json.loads(features_path.read_text(encoding="utf-8"))
+            parts.append("## Feature List (from feature_list.json)\n")
+            for f in features.get("features", []):
+                status = "[x]" if f.get("passes") else "[ ]"
+                desc = f.get("description", f.get("name", "Unknown"))
+                parts.append(f"- {status} {desc}")
+        except Exception:
+            pass
+
+    # Progress
+    progress_path = Path(PROGRESS_FILE)
+    if progress_path.exists():
+        try:
+            progress = progress_path.read_text(encoding="utf-8")
+            if progress.strip():
+                # 限制长度，避免上下文过长
+                parts.append(f"\n## Last Session Progress (from PROGRESS.md)\n\n{progress[:1500]}")
+        except Exception:
+            pass
+
+    return "\n".join(parts) if parts else ""
+
+
 # ============ 工具定义 ============
 TOOLS = [
     {"name": "read", "description": "Read the contents of a file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
@@ -171,6 +211,29 @@ For multi-step tasks:
 Always explain what you're doing before taking action.
 
 {context}"""
+
+
+# 长时间运行模式提示词
+LONG_RUNNING_PROMPT = """
+
+## Long-Running Task Mode
+
+You are in a long-running task mode. At the start of EACH session, follow these steps:
+
+1. Run `pwd` to confirm your working directory
+2. Read git logs (`git log --oneline -10`) and PROGRESS.md to understand recent work
+3. Read feature_list.json and pick ONE incomplete feature (passes: false)
+4. If init.sh exists, read it to understand how to start the dev server
+5. Test basic functionality before implementing new features
+6. Implement the feature incrementally, testing as you go
+7. End session with: git commit + update PROGRESS.md
+
+IMPORTANT Rules:
+- Only change `passes` field in feature_list.json. NEVER remove or modify features.
+- Leave codebase in clean state after each session (no half-implemented features).
+- Work on ONE feature at a time. Do not start new features until current one is complete.
+- Always verify features work end-to-end before marking as passing.
+"""
 
 
 # ============ Rate Limit 控制 ============
@@ -976,6 +1039,7 @@ def parse_args():
     parser.add_argument("--session", metavar="ID", help="Session ID (use 'resume', 'list', or specific ID)")
     parser.add_argument("--parallel", action="store_true", help="Enable parallel tool execution (P2)")
     parser.add_argument("--team", metavar="TASKS", help="Run multiple sub-agents in parallel (comma-separated tasks)")
+    parser.add_argument("--init", metavar="TASK", help="Initialize a long-running task (creates feature_list.json, PROGRESS.md, init.sh)")
     return parser.parse_args()
 
 
@@ -996,8 +1060,41 @@ def main():
             print("No sessions found.")
         sys.exit(0)
 
+    # --init: 初始化长时间运行任务
+    if args.init:
+        user_prompt = f"""Initialize a long-running project: {args.init}
+
+Create these files in the current directory:
+
+1. **feature_list.json** - A comprehensive list of ALL features needed for this project.
+   Format:
+   {{
+     "features": [
+       {{
+         "description": "Feature description (clear and testable)",
+         "steps": ["step 1", "step 2", "step 3"],
+         "passes": false
+       }}
+     ]
+   }}
+   IMPORTANT: All features should have passes: false initially.
+
+2. **PROGRESS.md** - A progress log file with title:
+   # Progress Log
+
+3. **init.sh** (optional) - A script to start the development server if applicable.
+   Make it executable with: chmod +x init.sh
+
+After creating these files, make an initial git commit:
+   git add .
+   git commit -m "Initial commit: project setup for {args.init[:50]}"
+
+Be thorough when creating the feature list - break down the project into small, testable features.
+"""
+        print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
+
     # --team 和 --parallel 不需要位置参数
-    if not user_prompt and not args.team and not args.parallel:
+    if not user_prompt and not args.team and not args.parallel and not args.init:
         print("Kodax Agent - 极致轻量化 Coding Agent\n")
         print("Usage: uv run kodax_agent.py \"your task\"")
         print("       uv run kodax_agent.py /skill_name")
@@ -1009,6 +1106,7 @@ def main():
         print("  --session ID       Session management (resume, list, or ID)")
         print("  --parallel         Enable parallel tool execution (P2)")
         print("  --team TASKS       Run multiple sub-agents in parallel (comma-separated)")
+        print("  --init TASK        Initialize a long-running task")
         print("\nSkills:")
         skills = load_skills()
         if skills:
@@ -1094,7 +1192,7 @@ def main():
         print(f"Failed to initialize provider: {e}")
         sys.exit(1)
 
-    # 构建上下文（Git + 项目快照）
+    # 构建上下文（Git + 项目快照 + 长运行模式）
     context_parts = []
 
     # Git 上下文（仅新会话时获取）
@@ -1108,13 +1206,25 @@ def main():
         if snapshot:
             context_parts.append(snapshot)
 
+    # 长运行模式检测（检查 feature_list.json 是否存在）
+    is_long_running = Path(FEATURES_FILE).exists() and not args.init
+    if is_long_running:
+        long_ctx = get_long_running_context()
+        if long_ctx:
+            context_parts.append(long_ctx)
+
     # 组装系统提示词
     system_prompt = SYSTEM_PROMPT.format(context="\n\n".join(context_parts) if context_parts else "")
+
+    # 长运行模式增强提示词
+    if is_long_running:
+        system_prompt += LONG_RUNNING_PROMPT
 
     # 添加用户消息
     session.messages.append({"role": "user", "content": user_prompt})
 
     print(f"\033[36m[Kodax]\033[0m Provider: {args.provider} | Session: {session.id}")
+    if is_long_running: print(f"\033[36m[Kodax]\033[0m Long-running mode enabled")
     if args.parallel: print(f"\033[36m[Kodax]\033[0m Parallel mode enabled")
     if confirm_tools: print(f"\033[36m[Kodax]\033[0m Confirm: {', '.join(sorted(confirm_tools))}")
     print()

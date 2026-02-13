@@ -266,6 +266,58 @@ uv run kodax_agent.py --provider zhipu-coding "使用 undo 工具"
 
 ---
 
+## 长时间运行模式测试 (P1)
+
+### 15. --init 初始化
+
+```bash
+# 测试长运行任务初始化
+uv run kodax_agent.py --provider zhipu-coding --init "构建一个简单的 TODO 应用"
+
+# 预期：
+# 1. Agent 创建 feature_list.json（包含所有功能，每个 passes: false）
+# 2. Agent 创建 PROGRESS.md
+# 3. Agent 创建 init.sh（如果适用）
+# 4. Agent 执行初始 git commit
+```
+
+```bash
+# 检查创建的文件
+ls feature_list.json PROGRESS.md init.sh
+
+# 预期：三个文件都存在
+```
+
+### 16. 长运行模式自动检测
+
+```bash
+# 在有 feature_list.json 的目录运行
+uv run kodax_agent.py --provider zhipu-coding "继续开发"
+
+# 预期：
+# 1. 显示 "[Kodax] Long-running mode enabled"
+# 2. Agent 自动读取 feature_list.json 和 PROGRESS.md
+# 3. Agent 选择一个未完成的功能开始工作
+# 4. Agent 结束前更新 PROGRESS.md
+```
+
+### 17. 长运行模式提示词
+
+验证 Agent 是否遵循长运行模式的标准流程：
+
+```bash
+# 预期 Agent 行为：
+# 1. 执行 pwd 确认工作目录
+# 2. 读取 git logs 了解最近工作
+# 3. 读取 PROGRESS.md
+# 4. 读取 feature_list.json
+# 5. 选择一个 passes: false 的功能
+# 6. 实现功能
+# 7. 结束前 git commit + 更新 PROGRESS.md
+```
+
+---
+
 ## P2 功能测试
 
 ### 9. 并行工具执行

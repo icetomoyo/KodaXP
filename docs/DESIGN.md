@@ -892,7 +892,136 @@ uv run kodax_agent.py "修改 kodax_agent.py 添加新功能，然后撤销"
 
 ---
 
-## 9. Agent Team (P2) ✅ 已完成
+## 9. 长时间运行模式 (P1) ✅ 已完成
+
+基于 Anthropic 文章：[Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+
+### 9.1 背景
+
+长时间运行代理面临两个核心问题：
+1. **Agent 一次做太多** - 尝试一次性完成所有功能，导致上下文溢出
+2. **过早宣布完成** - 看到部分进度就认为项目已完成
+
+### 9.2 解决方案
+
+采用 **Initializer Agent + Coding Agent** 两阶段模式：
+
+**Initializer Agent** (`--init`):
+- 创建 `feature_list.json` - 所有功能的详细列表，初始 `passes: false`
+- 创建 `PROGRESS.md` - 进度日志
+- 创建 `init.sh` - 启动开发服务器脚本
+- 初始 git commit
+
+**Coding Agent** (后续运行):
+- 自动检测 `feature_list.json` 存在，进入长运行模式
+- 每个 session 只处理一个 feature
+- 结束前 git commit + 更新 PROGRESS.md
+
+### 9.3 状态文件
+
+**feature_list.json**:
+```json
+{
+  "features": [
+    {
+      "description": "User can create new chat",
+      "steps": ["Navigate to interface", "Click New Chat", "Verify conversation created"],
+      "passes": false
+    },
+    {
+      "description": "User can send message",
+      "steps": ["Type message", "Press enter", "See AI response"],
+      "passes": false
+    }
+  ]
+}
+```
+
+**PROGRESS.md**:
+```markdown
+# Progress Log
+
+## 2026-02-12 15:30
+
+### Completed
+- Basic chat interface setup
+- Message sending functionality
+
+### Next
+- Add conversation history
+- Implement theme switching
+```
+
+### 9.4 实现
+
+**状态检测函数**:
+```python
+def get_long_running_context() -> str:
+    """检测并加载长运行任务上下文"""
+    parts = []
+
+    # Feature List
+    if Path(FEATURES_FILE).exists():
+        features = json.loads(Path(FEATURES_FILE).read_text(encoding="utf-8"))
+        parts.append("## Feature List (from feature_list.json)\n")
+        for f in features.get("features", []):
+            status = "[x]" if f.get("passes") else "[ ]"
+            parts.append(f"- {status} {f.get('description')}")
+
+    # Progress
+    if Path(PROGRESS_FILE).exists():
+        progress = Path(PROGRESS_FILE).read_text(encoding="utf-8")
+        parts.append(f"\n## Last Session Progress\n\n{progress[:1500]}")
+
+    return "\n".join(parts) if parts else ""
+```
+
+**长运行模式提示词**:
+```python
+LONG_RUNNING_PROMPT = """
+## Long-Running Task Mode
+
+At the start of EACH session:
+1. Run `pwd` to confirm working directory
+2. Read git logs and PROGRESS.md
+3. Read feature_list.json, pick ONE incomplete feature
+4. If init.sh exists, read it
+5. Test basic functionality before implementing
+6. Implement feature incrementally
+7. End with: git commit + update PROGRESS.md
+
+IMPORTANT:
+- Only change `passes` field in feature_list.json
+- Leave codebase in clean state
+- Work on ONE feature at a time
+"""
+```
+
+### 9.5 使用方式
+
+```bash
+# 1. 初始化长运行项目
+uv run kodax_agent.py --init "构建 claude.ai 克隆"
+
+# 2. 后续运行（自动检测长运行模式）
+uv run kodax_agent.py "继续开发"
+
+# 3. 第二天继续
+uv run kodax_agent.py --session resume "继续昨天的工作"
+```
+
+### 9.6 设计原则
+
+| 原则 | 实现 |
+|------|------|
+| **提示词驱动** | 通过 LONG_RUNNING_PROMPT 引导行为，不增加复杂代码逻辑 |
+| **状态文件** | JSON + Markdown 格式，人类可读可编辑 |
+| **自动检测** | 检测 `feature_list.json` 存在自动启用长运行模式 |
+| **极简代码** | 仅增加 ~45 行代码 |
+
+---
+
+## 10. Agent Team (P2) ✅ 已完成
 
 ### 8.1 使用场景
 

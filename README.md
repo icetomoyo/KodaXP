@@ -130,6 +130,29 @@ uv run kodax_agent.py /review src/main.py
 | `--session resume\|list` | Session management |
 | `--parallel` | Parallel tool execution |
 | `--team TASKS` | Run multiple agents in parallel |
+| `--init TASK` | Initialize a long-running task |
+
+## Long-Running Tasks
+
+For complex projects that span multiple sessions, use `--init` to set up a long-running task:
+
+```bash
+# Initialize
+uv run kodax_agent.py --init "build a claude.ai clone"
+
+# This creates:
+# - feature_list.json (all features with passes: false)
+# - PROGRESS.md (progress log)
+# - init.sh (dev server script)
+
+# Continue work (auto-detects long-running mode)
+uv run kodax_agent.py "continue development"
+
+# Resume next day
+uv run kodax_agent.py --session resume "continue yesterday's work"
+```
+
+Based on [Anthropic's research](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) on long-running agents.
 
 ## How It Works
 
