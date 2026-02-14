@@ -57,27 +57,26 @@ stream_lock = threading.Lock()
 
 
 # ============ 等待动画 ============
-class WaitingDots:
-    """等待时打印点动画，收到响应后停止"""
+def start_waiting_dots(interval: float = 1.0) -> callable:
+    """启动等待动画，返回停止函数
 
-    def __init__(self, interval: float = 1.0):
-        self._running = False
-        self._thread = None
-        self._interval = interval
+    使用闭包实现，比类更简洁。
+    """
+    running = [True]  # 用列表以便在闭包中修改
 
-    def _animate(self):
-        while self._running:
+    def animate():
+        while running[0]:
             print(".", end="", flush=True)
-            time.sleep(self._interval)
+            time.sleep(interval)
 
-    def start(self):
-        self._running = True
-        self._thread = threading.Thread(target=self._animate, daemon=True)
-        self._thread.start()
+    thread = threading.Thread(target=animate, daemon=True)
+    thread.start()
 
-    def stop(self):
-        self._running = False
+    def stop():
+        running[0] = False
         print()  # 换行，让流式内容在新行开始
+
+    return stop
 
 # 文件备份（用于 Undo 功能）
 FILE_BACKUPS: dict[str, str] = {}
@@ -389,15 +388,22 @@ class Provider(ABC):
         pass
 
 
-class AnthropicProvider(Provider):
-    """Anthropic Claude 原生 Provider
+class AnthropicBaseProvider(Provider):
+    """Anthropic API 基类（原生 + 兼容）
 
-    支持 Claude 模型的所有特性，包括 Thinking Mode。
+    统一处理 Anthropic 原生 API 和兼容 API（Kimi Code, Zhipu Coding）。
+    支持 Thinking Mode 和工具调用。
     """
+    BASE_URL: str = None  # None 表示原生 API
+    API_KEY_ENV: str      # 子类必须设置
+    MODEL: str            # 子类必须设置
+
     def __init__(self):
         import anthropic
-        self.client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-        self.model = "claude-sonnet-4-20250514"
+        kwargs = {"api_key": os.environ.get(self.API_KEY_ENV)}
+        if self.BASE_URL:
+            kwargs["base_url"] = self.BASE_URL
+        self.client = anthropic.Anthropic(**kwargs)
 
     def stream(self, messages, tools, system, thinking=False):
         text_blocks, tool_blocks = [], []
@@ -406,13 +412,12 @@ class AnthropicProvider(Provider):
         in_thinking = False
         first_content = True
 
-        kwargs = {"model": self.model, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
+        kwargs = {"model": self.MODEL, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
         if thinking:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
-        dots = WaitingDots()
-        dots.start()
+        stop_dots = start_waiting_dots()
 
         try:
             with self.client.messages.stream(**kwargs) as stream:
@@ -420,10 +425,9 @@ class AnthropicProvider(Provider):
                     if event.type == "content_block_delta":
                         if event.delta.type == "text_delta":
                             if first_content:
-                                dots.stop()
+                                stop_dots()
                                 first_content = False
                             if in_thinking and thinking_text:
-                                # 结束 thinking 块，打印累积的内容
                                 print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
                                 thinking_text = ""
                                 in_thinking = False
@@ -431,21 +435,20 @@ class AnthropicProvider(Provider):
                             current_text += event.delta.text
                         elif event.delta.type == "thinking_delta" and thinking:
                             if first_content:
-                                dots.stop()
+                                stop_dots()
                                 first_content = False
                             if not in_thinking:
                                 in_thinking = True
                             thinking_text += event.delta.thinking
                     elif event.type == "content_block_start" and event.content_block.type == "tool_use":
                         if first_content:
-                            dots.stop()
+                            stop_dots()
                             first_content = False
                         if current_text:
                             text_blocks.append({"type": "text", "text": current_text})
                             current_text = ""
                         print()
 
-                # 打印剩余的 thinking 内容
                 if thinking_text:
                     print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
 
@@ -455,15 +458,20 @@ class AnthropicProvider(Provider):
                         if not text_blocks or text_blocks[-1].get("text") != block.text:
                             text_blocks.append({"type": "text", "text": block.text})
                     elif block.type == "tool_use":
-                        # 转换为 dict 以统一处理
                         tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
         finally:
-            dots.stop()
+            stop_dots()
 
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
         print()
         return text_blocks, tool_blocks
+
+
+class AnthropicProvider(AnthropicBaseProvider):
+    """Anthropic Claude 原生 Provider"""
+    API_KEY_ENV = "ANTHROPIC_API_KEY"
+    MODEL = "claude-sonnet-4-20250514"
 
 
 class OpenAICompatProvider(Provider):
@@ -487,8 +495,7 @@ class OpenAICompatProvider(Provider):
         first_content = True
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
-        dots = WaitingDots()
-        dots.start()
+        stop_dots = start_waiting_dots()
 
         try:
             response = self.client.chat.completions.create(model=self.MODEL, messages=full_messages, tools=tools, stream=True)
@@ -497,13 +504,13 @@ class OpenAICompatProvider(Provider):
                 delta = chunk.choices[0].delta
                 if delta.content:
                     if first_content:
-                        dots.stop()
+                        stop_dots()
                         first_content = False
                     print(delta.content, end="", flush=True)
                     text_content += delta.content
                 if delta.tool_calls:
                     if first_content:
-                        dots.stop()
+                        stop_dots()
                         first_content = False
                     for tc in delta.tool_calls:
                         if tc.index not in tool_calls_map:
@@ -512,7 +519,7 @@ class OpenAICompatProvider(Provider):
                             tool_calls_map[tc.index]["name"] = tc.function.name or tool_calls_map[tc.index]["name"]
                             tool_calls_map[tc.index]["arguments"] += tc.function.arguments or ""
         finally:
-            dots.stop()
+            stop_dots()
 
         print()
 
@@ -557,8 +564,7 @@ class ZhipuProvider(Provider):
         first_content = True
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
-        dots = WaitingDots()
-        dots.start()
+        stop_dots = start_waiting_dots()
 
         try:
             response = self.client.chat.completions.create(model=self.model, messages=full_messages, tools=tools, stream=True)
@@ -567,13 +573,13 @@ class ZhipuProvider(Provider):
                 delta = chunk.choices[0].delta
                 if delta.content:
                     if first_content:
-                        dots.stop()
+                        stop_dots()
                         first_content = False
                     print(delta.content, end="", flush=True)
                     text_content += delta.content
                 if delta.tool_calls:
                     if first_content:
-                        dots.stop()
+                        stop_dots()
                         first_content = False
                     for tc in delta.tool_calls:
                         idx = tc.index if hasattr(tc, 'index') else 0
@@ -583,7 +589,7 @@ class ZhipuProvider(Provider):
                             tool_calls_map[idx]["name"] = tc.function.name or tool_calls_map[idx]["name"]
                             tool_calls_map[idx]["arguments"] += tc.function.arguments or ""
         finally:
-            dots.stop()
+            stop_dots()
 
         print()
 
@@ -592,101 +598,14 @@ class ZhipuProvider(Provider):
         return text_blocks, tool_blocks
 
 
-class AnthropicCompatProvider(Provider):
-    """Anthropic 兼容 API 基类 (用于 Kimi Code, GLM Coding Plan)"""
-    BASE_URL: str
-    API_KEY_ENV: str
-    MODEL: str
-
-    def __init__(self):
-        import anthropic
-        self.client = anthropic.Anthropic(
-            api_key=os.environ.get(self.API_KEY_ENV),
-            base_url=self.BASE_URL
-        )
-
-    def stream(self, messages, tools, system, thinking=False):
-        text_blocks, tool_blocks = [], []
-        current_text = ""
-        thinking_text = ""
-        in_thinking = False
-        first_content = True
-
-        kwargs = {"model": self.MODEL, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
-        if thinking:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
-
-        print("\033[35m[Assistant]\033[0m ", end="", flush=True)
-        dots = WaitingDots()
-        dots.start()
-
-        try:
-            with self.client.messages.stream(**kwargs) as stream:
-                for event in stream:
-                    if event.type == "content_block_delta":
-                        if event.delta.type == "text_delta":
-                            if first_content:
-                                dots.stop()
-                                first_content = False
-                            if in_thinking and thinking_text:
-                                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
-                                thinking_text = ""
-                                in_thinking = False
-                            print(event.delta.text, end="", flush=True)
-                            current_text += event.delta.text
-                        elif event.delta.type == "thinking_delta" and thinking:
-                            if first_content:
-                                dots.stop()
-                                first_content = False
-                            if not in_thinking:
-                                in_thinking = True
-                            thinking_text += event.delta.thinking
-                    elif event.type == "content_block_start" and event.content_block.type == "tool_use":
-                        if first_content:
-                            dots.stop()
-                            first_content = False
-                        if current_text:
-                            text_blocks.append({"type": "text", "text": current_text})
-                            current_text = ""
-                        print()
-
-                if thinking_text:
-                    print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
-
-                final = stream.get_final_message()
-                for block in final.content:
-                    if block.type == "text" and block.text:
-                        if not text_blocks or text_blocks[-1].get("text") != block.text:
-                            text_blocks.append({"type": "text", "text": block.text})
-                    elif block.type == "tool_use":
-                        # 转换为 dict 以统一处理
-                        tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
-        finally:
-            dots.stop()
-
-        if current_text and not text_blocks:
-            text_blocks.append({"type": "text", "text": current_text})
-        print()
-        return text_blocks, tool_blocks
-
-
-class KimiCodeProvider(AnthropicCompatProvider):
-    """Kimi Code Anthropic 兼容接口 - 支持工具调用和 Thinking
-
-    文档: https://www.kimi.com/code/docs/more/third-party-agents.html
-    Base URL: https://api.kimi.com/coding/
-    Model: k2p5 (Kimi K2.5 Thinking)
-
-    配置方式 (Claude Code 集成):
-        export ANTHROPIC_BASE_URL=https://api.kimi.com/coding/
-        export ANTHROPIC_API_KEY=sk-kimi-xxx
-    """
+class KimiCodeProvider(AnthropicBaseProvider):
+    """Kimi Code Anthropic 兼容接口 - 支持工具调用和 Thinking"""
     BASE_URL = "https://api.kimi.com/coding/"
     API_KEY_ENV = "KIMI_API_KEY"
     MODEL = "k2p5"
 
 
-class ZhipuCodingProvider(AnthropicCompatProvider):
+class ZhipuCodingProvider(AnthropicBaseProvider):
     """智谱 AI GLM Coding Plan - Anthropic 兼容接口"""
     BASE_URL = "https://open.bigmodel.cn/api/anthropic"
     API_KEY_ENV = "ZHIPU_API_KEY"
