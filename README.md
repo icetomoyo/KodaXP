@@ -15,14 +15,28 @@ Single file • ~800 LOC • 7 LLM providers • Streaming • Parallel executio
 
 ## Why Kodax?
 
-Other AI coding assistants are bloated. Kodax is **one file**, **zero config**, and supports **7 LLM providers** out of the box.
+**Transparent** • **Flexible** • **Customizable**
 
-```
-# Compare
-Claude Code:   ~50,000 LOC, $20/month
-Aider:         ~15,000 LOC, complex setup
-Kodax:           ~800 LOC, uv sync && go
-```
+Kodax is designed for developers who want to **understand**, **customize**, and **control** their AI coding assistant.
+
+| What | Kodax | Others |
+|------|-------|--------|
+| **Code** | Single file (~800 LOC), read in 10 minutes | Thousands of files, hard to understand |
+| **Providers** | 7 LLM providers, switch freely | Usually locked to one provider |
+| **Cost** | Use cheap models (Kimi, Zhipu, Qwen) | Often requires expensive subscriptions |
+| **Customization** | Modify the code directly | Complex plugin systems |
+| **Learning** | Perfect for understanding how agents work | Black box |
+
+**When to use Kodax:**
+- You want to **learn** how AI coding agents work
+- You need **flexibility** across multiple LLM providers
+- You want to **customize** the agent for your workflow
+- You prefer **transparency** over magic
+
+**When to use others:**
+- You need a **production-ready** solution out of the box
+- You want **IDE integration** (Cursor, Windsurf)
+- You need **advanced features** beyond basic coding tasks
 
 ## Features
 
@@ -30,6 +44,7 @@ Kodax:           ~800 LOC, uv sync && go
 - **7 Providers** - Anthropic, OpenAI, Kimi, Kimi Code, Zhipu, Zhipu Coding, Qwen
 - **Streaming** - Real-time output, no waiting
 - **Session Memory** - Conversations persist across runs
+- **Long-Running Mode** - Feature tracking with `feature_list.json` and `PROGRESS.md`
 - **Parallel Tools** - Execute multiple tools simultaneously
 - **Skills** - Extend with custom Python functions
 - **Thinking Mode** - Deep reasoning for complex tasks (supported providers)
