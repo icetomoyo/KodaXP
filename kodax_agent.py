@@ -1364,6 +1364,7 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
 
     iteration, max_iter = 0, args.max_iter
     last_text = ""  # 用于 promise 信号检测
+    error_tracker: dict[str, int] = {}  # 重复错误检测
 
     while iteration < max_iter:
         iteration += 1
@@ -1400,6 +1401,14 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
                 for tc, result in zip(tool_blocks, results):
                     print(f"\033[32m[Result]\033[0m {result[:200]}{'...' if len(result) > 200 else ''}")
                     tool_results.append({"type": "tool_result", "tool_use_id": tc["id"], "content": result})
+
+                    # 重复错误检测
+                    if "[Tool Error]" in result:
+                        error_key = f"{tc['name']}:{result[:50]}"
+                        error_tracker[error_key] = error_tracker.get(error_key, 0) + 1
+                        if error_tracker[error_key] >= 3:
+                            print(f"\n\033[31m[Warning]\033[0m Same error repeated {error_tracker[error_key]} times!")
+                            print(f"\033[31m[Warning]\033[0m This may indicate an API issue with thinking mode.")
             else:
                 # 顺序执行工具
                 for tc in tool_blocks:
@@ -1407,6 +1416,15 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
                     result = execute_tool(tc["name"], tc["input"], confirm_tools)
                     print(f"\033[32m[Result]\033[0m {result[:300]}{'...' if len(result) > 300 else ''}\n")
                     tool_results.append({"type": "tool_result", "tool_use_id": tc["id"], "content": result})
+
+                    # 重复错误检测
+                    if "[Tool Error]" in result:
+                        error_key = f"{tc['name']}:{result[:50]}"
+                        error_tracker[error_key] = error_tracker.get(error_key, 0) + 1
+                        if error_tracker[error_key] >= 3:
+                            print(f"\n\033[31m[Warning]\033[0m Same error repeated {error_tracker[error_key]} times!")
+                            print(f"\033[31m[Warning]\033[0m This may indicate an API issue with thinking mode.")
+                            print(f"\033[31m[Warning]\033[0m Consider: 1) Disable --thinking, 2) Use smaller file writes, 3) Use edit instead of write\n")
 
             session.messages.append({"role": "user", "content": tool_results})
             session.save()
