@@ -705,21 +705,39 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
                 was_capped = user_timeout and user_timeout > HARD_TIMEOUT
 
                 try:
-                    # Windows 使用 OEM 编码（GBK），其他系统使用 UTF-8
-                    encoding = 'oem' if sys.platform == 'win32' else 'utf-8'
-                    # 使用 ignore 避免产生无法打印的 \ufffd 字符
-                    errors_mode = 'ignore' if sys.platform == 'win32' else 'replace'
+                    if sys.platform == 'win32':
+                        # Windows 智能解码：先尝试 UTF-8，失败则回退到 OEM (GBK)
+                        # 解决 git 中文输出乱码问题
+                        r = subprocess.run(
+                            input_data["command"],
+                            shell=True,
+                            capture_output=True,
+                            timeout=timeout
+                        )
+                        # 智能解码 stdout
+                        try:
+                            stdout = r.stdout.decode('utf-8')
+                        except UnicodeDecodeError:
+                            stdout = r.stdout.decode('oem', errors='ignore')
+                        # 智能解码 stderr
+                        try:
+                            stderr = r.stderr.decode('utf-8')
+                        except UnicodeDecodeError:
+                            stderr = r.stderr.decode('oem', errors='ignore')
+                    else:
+                        # Unix 系统直接使用 UTF-8
+                        r = subprocess.run(
+                            input_data["command"],
+                            shell=True,
+                            capture_output=True,
+                            text=True,
+                            encoding='utf-8',
+                            errors='replace',
+                            timeout=timeout
+                        )
+                        stdout, stderr = r.stdout, r.stderr
 
-                    r = subprocess.run(
-                        input_data["command"],
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                        encoding=encoding,
-                        errors=errors_mode,
-                        timeout=timeout
-                    )
-                    result = f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
+                    result = f"Exit: {r.returncode}\n{stdout}{stderr}"
                     if was_capped:
                         result += f"\n\n[Note] Your timeout ({user_timeout}s) was capped at {HARD_TIMEOUT}s."
                     return result
