@@ -1010,7 +1010,134 @@ uv run kodax_agent.py "继续开发"
 uv run kodax_agent.py --session resume "继续昨天的工作"
 ```
 
-### 9.6 设计原则
+### 9.6 自动继续模式 (Auto-Continue)
+
+完全自主运行，直到所有功能完成。
+
+**使用方式**:
+```bash
+# 1. 初始化（必须先执行 --init）
+uv run kodax_agent.py --init "构建带认证的 REST API"
+
+# 2. 自动继续直到完成
+uv run kodax_agent.py --auto-continue
+
+# 3. 自定义安全限制
+uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+```
+
+**安全阀设计**（自动停止，无需人工介入）:
+
+| 条件 | 默认值 | 说明 |
+|------|--------|------|
+| 所有功能完成 | - | `feature_list.json` 中所有 `passes: true` |
+| 最大会话数 | 50 | `--max-sessions` 参数控制 |
+| 最大小时数 | 2.0 | `--max-hours` 参数控制 |
+| 连续错误 | 3次 | 连续 3 次会话失败 |
+
+**实现**:
+```python
+def check_all_features_complete() -> bool:
+    """检查所有 feature 是否已完成"""
+    features_path = Path(FEATURES_FILE)
+    if not features_path.exists():
+        return False
+    try:
+        features = json.loads(features_path.read_text(encoding="utf-8"))
+        for f in features.get("features", []):
+            if not f.get("passes", False):
+                return False
+        return True
+    except Exception:
+        return False
+
+def get_feature_progress() -> tuple[int, int]:
+    """获取 feature 完成进度 (completed, total)"""
+    # ...
+```
+
+**主循环**:
+```python
+# auto-continue 模式
+if args.auto_continue:
+    start_time = time.time()
+    session_count = 0
+    consecutive_errors = 0
+
+    while True:
+        # 检查安全阀
+        completed, total = get_feature_progress()
+        if check_all_features_complete():
+            print(f"\n[Kodax] All features completed! ({completed}/{total})")
+            break
+
+        if session_count >= args.max_sessions:
+            print(f"\n[Kodax] Max sessions reached ({args.max_sessions})")
+            break
+
+        elapsed_hours = (time.time() - start_time) / 3600
+        if elapsed_hours >= args.max_hours:
+            print(f"\n[Kodax] Max hours reached ({args.max_hours}h)")
+            break
+
+        # 运行一个 session
+        success = run_single_session(args, prompt)
+
+        if success:
+            consecutive_errors = 0
+        else:
+            consecutive_errors += 1
+            if consecutive_errors >= 3:
+                print(f"\n[Kodax] Too many consecutive errors, stopping")
+                break
+
+        session_count += 1
+```
+
+**与 `--init` 的语义配对**:
+
+| 命令 | 作用 | 依赖 |
+|------|------|------|
+| `--init TASK` | 初始化长运行项目 | 无 |
+| `--auto-continue` | 自动继续直到完成 | 需要 `feature_list.json` |
+
+`--auto-continue` 必须在 `--init` 之后使用，否则会报错：
+```
+[Error] --auto-continue requires a long-running project.
+       Run 'kodax_agent.py --init "your task"' first.
+```
+
+### 9.7 单次会话迭代限制 (--max-iter)
+
+控制单个 session 内的 Agent 迭代次数。
+
+**默认值**: 50
+
+**使用场景**:
+- 防止单个 session 无限循环
+- 控制单次运行的成本
+- 调试时限制迭代次数
+
+```bash
+# 默认 50 次迭代
+uv run kodax_agent.py "你的任务"
+
+# 限制为 20 次迭代
+uv run kodax_agent.py --max-iter 20 "你的任务"
+
+# 配合 auto-continue 使用
+uv run kodax_agent.py --auto-continue --max-iter 30
+```
+
+**三个正交维度**:
+
+| 维度 | 参数 | 层级 | 说明 |
+|------|------|------|------|
+| 项目级别 | `--init` / `--auto-continue` | 跨 session | 控制长运行任务生命周期 |
+| 会话级别 | `--max-iter` | 单 session | 控制单次运行的迭代次数 |
+| 安全级别 | `--max-sessions` / `--max-hours` | auto-continue | 控制 auto-continue 的边界 |
+
+### 9.8 设计原则
 
 | 原则 | 实现 |
 |------|------|
@@ -1018,6 +1145,8 @@ uv run kodax_agent.py --session resume "继续昨天的工作"
 | **状态文件** | JSON + Markdown 格式，人类可读可编辑 |
 | **自动检测** | 检测 `feature_list.json` 存在自动启用长运行模式 |
 | **极简代码** | 仅增加 ~45 行代码 |
+| **语义配对** | `--init` 初始化，`--auto-continue` 持续运行 |
+| **安全阀** | 自动停止条件，无需人工干预 |
 
 ---
 

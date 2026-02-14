@@ -198,6 +198,45 @@ def get_long_running_context() -> str:
     return "\n".join(parts) if parts else ""
 
 
+def check_all_features_complete() -> bool:
+    """检查所有 feature 是否已完成
+
+    Returns:
+        True 如果所有 feature 的 passes 都为 True
+    """
+    features_path = Path(FEATURES_FILE)
+    if not features_path.exists():
+        return False
+
+    try:
+        features = json.loads(features_path.read_text(encoding="utf-8"))
+        for f in features.get("features", []):
+            if not f.get("passes", False):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def get_feature_progress() -> tuple[int, int]:
+    """获取 feature 完成进度
+
+    Returns:
+        (completed, total) 完成数和总数
+    """
+    features_path = Path(FEATURES_FILE)
+    if not features_path.exists():
+        return (0, 0)
+
+    try:
+        features = json.loads(features_path.read_text(encoding="utf-8"))
+        total = len(features.get("features", []))
+        completed = sum(1 for f in features.get("features", []) if f.get("passes", False))
+        return (completed, total)
+    except Exception:
+        return (0, 0)
+
+
 # ============ 工具定义 ============
 TOOLS = [
     {"name": "read", "description": "Read the contents of a file.", "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
@@ -1085,94 +1124,26 @@ def parse_args():
     parser.add_argument("--parallel", action="store_true", help="Enable parallel tool execution (P2)")
     parser.add_argument("--team", metavar="TASKS", help="Run multiple sub-agents in parallel (comma-separated tasks)")
     parser.add_argument("--init", metavar="TASK", help="Initialize a long-running task (creates feature_list.json, PROGRESS.md, init.sh)")
+    parser.add_argument("--max-iter", type=int, default=50, help="Max iterations per session (default: 50)")
+    parser.add_argument("--auto-continue", action="store_true", help="Auto-continue long-running task until all features pass (requires --init first)")
+    parser.add_argument("--max-sessions", type=int, default=50, help="Max sessions for --auto-continue (default: 50)")
+    parser.add_argument("--max-hours", type=float, default=2.0, help="Max hours for --auto-continue (default: 2.0)")
     return parser.parse_args()
 
 
 # ============ 主循环 ============
-def main():
-    args = parse_args()
-    user_prompt = " ".join(args.prompt)
+def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
+    """运行单个 session
 
-    # 会话列表（不需要 prompt）
-    if args.session == "list":
-        sessions = Session.list_all()
-        if sessions:
-            print("Sessions:")
-            for s in sessions:
-                title = s["title"] or "(no title)"
-                print(f"  {s['id']}  [{s['msg_count']} msgs]  {title}")
-        else:
-            print("No sessions found.")
-        sys.exit(0)
+    Args:
+        args: 命令行参数
+        user_prompt: 用户提示
+        session_id: 会话 ID（可选）
 
-    # --init: 初始化长时间运行任务
-    if args.init:
-        user_prompt = f"""Initialize a long-running project: {args.init}
-
-Create these files in the current directory:
-
-1. **feature_list.json** - A comprehensive list of ALL features needed for this project.
-   Format:
-   {{
-     "features": [
-       {{
-         "description": "Feature description (clear and testable)",
-         "steps": ["step 1", "step 2", "step 3"],
-         "passes": false
-       }}
-     ]
-   }}
-   IMPORTANT: All features should have passes: false initially.
-
-2. **PROGRESS.md** - A progress log file with title:
-   # Progress Log
-
-3. **init.sh** (optional) - A script to start the development server if applicable.
-   Make it executable with: chmod +x init.sh
-
-After creating these files, make an initial git commit:
-   git add .
-   git commit -m "Initial commit: project setup for {args.init[:50]}"
-
-Be thorough when creating the feature list - break down the project into small, testable features.
-"""
-        print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
-
-    # --team 和 --parallel 不需要位置参数
-    if not user_prompt and not args.team and not args.parallel and not args.init:
-        print("Kodax Agent - 极致轻量化 Coding Agent\n")
-        print("Usage: uv run kodax_agent.py \"your task\"")
-        print("       uv run kodax_agent.py /skill_name")
-        print("\nOptions:")
-        print("  --provider NAME    LLM provider (anthropic, kimi, kimi-code, qwen, zhipu, openai)")
-        print("  --thinking         Enable thinking mode (Anthropic, Kimi Code, Zhipu Coding)")
-        print("  --confirm TOOLS    Tools requiring confirmation")
-        print("  --no-confirm       Disable all confirmations")
-        print("  --session ID       Session management (resume, list, or ID)")
-        print("  --parallel         Enable parallel tool execution (P2)")
-        print("  --team TASKS       Run multiple sub-agents in parallel (comma-separated)")
-        print("  --init TASK        Initialize a long-running task")
-        print("\nSkills:")
-        skills = load_skills()
-        if skills:
-            for name, info in skills.items():
-                desc = info["desc"] or ""
-                if desc:
-                    print(f"  /{name:<15} {desc}")
-                else:
-                    print(f"  /{name}")
-        else:
-            print("  (no skills installed in ~/.kodax/skills/)")
-        sys.exit(0)
-
+    Returns:
+        True 如果 session 正常完成
+    """
     # 会话管理
-    session_id = None
-    if args.session == "resume":
-        sessions = Session.list_all()
-        session_id = sessions[0] if sessions else None
-    elif args.session:
-        session_id = args.session
-
     session = Session.load(session_id) if session_id else Session(id=time.strftime("%Y%m%d_%H%M%S"), messages=[])
 
     # Skill 检查
@@ -1190,52 +1161,23 @@ Be thorough when creating the feature list - break down the project into small, 
                     return texts[0]["text"] if texts else ""
             result = skills[skill_name]["func"](AgentProxy(), skill_args)
             print(result)
-            sys.exit(0)
+            return True
         else:
             print(f"Unknown skill: {skill_name}")
-            sys.exit(1)
+            return False
 
     # 确认工具
     confirm_tools = set() if args.no_confirm else (set(args.confirm.split(",")) if args.confirm else DEFAULT_CONFIRM_TOOLS)
-
-    # P2: Agent Team 模式
-    if args.team:
-        tasks = [t.strip() for t in args.team.split(",") if t.strip()]
-        if not tasks:
-            print("Error: No tasks specified for --team")
-            sys.exit(1)
-
-        print(f"\033[36m[Kodax Team]\033[0m Running {len(tasks)} tasks with {args.provider}")
-        if args.thinking:
-            print(f"\033[36m[Kodax Team]\033[0m Thinking mode enabled")
-
-        results = run_team(tasks, args.provider, args.thinking)
-
-        # 显示结果摘要（输出已是实时的）
-        print("\n" + "=" * 60)
-        print(f"\033[32m[Kodax Team]\033[0m Results Summary:")
-        print("=" * 60)
-        for i, (task, result_dict) in enumerate(zip(tasks, results), 1):
-            result = result_dict.get("result", "")
-            print(f"\n\033[33m[Task {i}]\033[0m {task[:50]}{'...' if len(task) > 50 else ''}")
-            if result:
-                # 只显示结果的最后部分作为摘要
-                result_preview = result[-300:] if len(result) > 300 else result
-                print(f"\033[32m[Result]\033[0m ...{result_preview}")
-
-        print("\n" + "=" * 60)
-        print(f"\033[32m[Kodax Team]\033[0m All {len(tasks)} tasks completed!")
-        sys.exit(0)
 
     # 初始化 Provider
     try:
         provider = PROVIDERS[args.provider]()
     except KeyError:
         print(f"Unknown provider: {args.provider}")
-        sys.exit(1)
+        return False
     except Exception as e:
         print(f"Failed to initialize provider: {e}")
-        sys.exit(1)
+        return False
 
     # 构建上下文（Git + 项目快照 + 长运行模式）
     context_parts = []
@@ -1274,7 +1216,7 @@ Be thorough when creating the feature list - break down the project into small, 
     if confirm_tools: print(f"\033[36m[Kodax]\033[0m Confirm: {', '.join(sorted(confirm_tools))}")
     print()
 
-    iteration, max_iter = 0, 50
+    iteration, max_iter = 0, args.max_iter
 
     while iteration < max_iter:
         iteration += 1
@@ -1328,6 +1270,190 @@ Be thorough when creating the feature list - break down the project into small, 
     session.save()
     if iteration >= max_iter:
         print("\n\033[33m[Kodax]\033[0m Max iterations reached")
+
+    return True
+
+
+def main():
+    args = parse_args()
+    user_prompt = " ".join(args.prompt)
+
+    # 会话列表（不需要 prompt）
+    if args.session == "list":
+        sessions = Session.list_all()
+        if sessions:
+            print("Sessions:")
+            for s in sessions:
+                title = s["title"] or "(no title)"
+                print(f"  {s['id']}  [{s['msg_count']} msgs]  {title}")
+        else:
+            print("No sessions found.")
+        sys.exit(0)
+
+    # --auto-continue: 检查依赖
+    if args.auto_continue:
+        if not Path(FEATURES_FILE).exists():
+            print("\033[31m[Error]\033[0m --auto-continue requires a long-running project.")
+            print("Run 'kodax_agent.py --init \"your project\"' first.")
+            sys.exit(1)
+
+        start_time = time.time()
+        session_count = 0
+        max_sessions = args.max_sessions
+        max_hours = args.max_hours
+
+        print(f"\033[36m[Kodax Auto-Continue]\033[0m Starting automatic session loop")
+        print(f"\033[36m[Kodax Auto-Continue]\033[0m Max sessions: {max_sessions}, Max hours: {max_hours}")
+
+        completed, total = get_feature_progress()
+        print(f"\033[36m[Kodax Auto-Continue]\033[0m Current progress: {completed}/{total} features complete")
+        print()
+
+        while session_count < max_sessions:
+            # 检查是否所有 feature 通过
+            if check_all_features_complete():
+                print("\n" + "=" * 60)
+                print(f"\033[32m[Kodax Auto-Continue]\033[0m All features complete!")
+                print("=" * 60)
+                break
+
+            # 检查是否超时
+            elapsed_hours = (time.time() - start_time) / 3600
+            if elapsed_hours >= max_hours:
+                print("\n" + "=" * 60)
+                print(f"\033[33m[Kodax Auto-Continue]\033[0m Max time reached ({max_hours}h)")
+                print("=" * 60)
+                break
+
+            session_count += 1
+            completed, total = get_feature_progress()
+
+            print("\n" + "=" * 60)
+            print(f"\033[36m[Kodax Auto-Continue]\033[0m Session {session_count}/{max_sessions}")
+            print(f"\033[36m[Kodax Auto-Continue]\033[0m Progress: {completed}/{total} features | Elapsed: {elapsed_hours:.1f}h/{max_hours}h")
+            print("=" * 60)
+
+            # 运行一个 session
+            prompt = user_prompt if user_prompt else "Continue implementing features from feature_list.json"
+            success = run_single_session(args, prompt)
+
+            if not success:
+                print(f"\n\033[31m[Kodax Auto-Continue]\033[0m Session failed, stopping")
+                break
+
+        # 显示最终状态
+        completed, total = get_feature_progress()
+        print("\n" + "=" * 60)
+        print(f"\033[36m[Kodax Auto-Continue]\033[0m Final Status:")
+        print(f"  Sessions completed: {session_count}")
+        print(f"  Features complete: {completed}/{total}")
+        print(f"  Total time: {(time.time() - start_time) / 60:.1f} minutes")
+        print("=" * 60)
+        sys.exit(0)
+
+    # --init: 初始化长时间运行任务
+    if args.init:
+        user_prompt = f"""Initialize a long-running project: {args.init}
+
+Create these files in the current directory:
+
+1. **feature_list.json** - A comprehensive list of ALL features needed for this project.
+   Format:
+   {{
+     "features": [
+       {{
+         "description": "Feature description (clear and testable)",
+         "steps": ["step 1", "step 2", "step 3"],
+         "passes": false
+       }}
+     ]
+   }}
+   IMPORTANT: All features should have passes: false initially.
+
+2. **PROGRESS.md** - A progress log file with title:
+   # Progress Log
+
+3. **init.sh** (optional) - A script to start the development server if applicable.
+   Make it executable with: chmod +x init.sh
+
+After creating these files, make an initial git commit:
+   git add .
+   git commit -m "Initial commit: project setup for {args.init[:50]}"
+
+Be thorough when creating the feature list - break down the project into small, testable features.
+"""
+        print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
+
+    # --team 和 --parallel 不需要位置参数
+    if not user_prompt and not args.team and not args.parallel and not args.init:
+        print("Kodax Agent - 极致轻量化 Coding Agent\n")
+        print("Usage: uv run kodax_agent.py \"your task\"")
+        print("       uv run kodax_agent.py /skill_name")
+        print("\nOptions:")
+        print("  --provider NAME    LLM provider (anthropic, kimi, kimi-code, qwen, zhipu, openai)")
+        print("  --thinking         Enable thinking mode (Anthropic, Kimi Code, Zhipu Coding)")
+        print("  --confirm TOOLS    Tools requiring confirmation")
+        print("  --no-confirm       Disable all confirmations")
+        print("  --session ID       Session management (resume, list, or ID)")
+        print("  --parallel         Enable parallel tool execution (P2)")
+        print("  --team TASKS       Run multiple sub-agents in parallel (comma-separated)")
+        print("  --init TASK        Initialize a long-running task")
+        print("  --max-iter N       Max iterations per session (default: 50)")
+        print("  --auto-continue    Auto-continue long-running task until all features pass")
+        print("  --max-sessions N   Max sessions for --auto-continue (default: 50)")
+        print("  --max-hours H      Max hours for --auto-continue (default: 2.0)")
+        print("\nSkills:")
+        skills = load_skills()
+        if skills:
+            for name, info in skills.items():
+                desc = info["desc"] or ""
+                if desc:
+                    print(f"  /{name:<15} {desc}")
+                else:
+                    print(f"  /{name}")
+        else:
+            print("  (no skills installed in ~/.kodax/skills/)")
+        sys.exit(0)
+
+    # 会话管理
+    session_id = None
+    if args.session == "resume":
+        sessions = Session.list_all()
+        session_id = sessions[0]["id"] if sessions else None
+    elif args.session:
+        session_id = args.session
+
+    # P2: Agent Team 模式
+    if args.team:
+        tasks = [t.strip() for t in args.team.split(",") if t.strip()]
+        if not tasks:
+            print("Error: No tasks specified for --team")
+            sys.exit(1)
+
+        print(f"\033[36m[Kodax Team]\033[0m Running {len(tasks)} tasks with {args.provider}")
+        if args.thinking:
+            print(f"\033[36m[Kodax Team]\033[0m Thinking mode enabled")
+
+        results = run_team(tasks, args.provider, args.thinking)
+
+        # 显示结果摘要（输出已是实时的）
+        print("\n" + "=" * 60)
+        print(f"\033[32m[Kodax Team]\033[0m Results Summary:")
+        print("=" * 60)
+        for i, (task, result_dict) in enumerate(zip(tasks, results), 1):
+            result = result_dict.get("result", "")
+            print(f"\n\033[33m[Task {i}]\033[0m {task[:50]}{'...' if len(task) > 50 else ''}")
+            if result:
+                # 只显示结果的最后部分作为摘要
+                result_preview = result[-300:] if len(result) > 300 else result
+                print(f"\033[32m[Result]\033[0m ...{result_preview}")
+
+        print("\n" + "=" * 60)
+        print(f"\033[32m[Kodax Team]\033[0m All {len(tasks)} tasks completed!")
+        sys.exit(0)
+
+    # 运行单个 session
+    run_single_session(args, user_prompt, session_id)
 
 
 if __name__ == "__main__":

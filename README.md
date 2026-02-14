@@ -131,6 +131,10 @@ uv run kodax_agent.py /review src/main.py
 | `--parallel` | Parallel tool execution |
 | `--team TASKS` | Run multiple agents in parallel |
 | `--init TASK` | Initialize a long-running task |
+| `--auto-continue` | Auto-continue until all features pass |
+| `--max-iter N` | Max iterations per session (default: 50) |
+| `--max-sessions N` | Max sessions for --auto-continue (default: 50) |
+| `--max-hours H` | Max hours for --auto-continue (default: 2.0) |
 
 ## Long-Running Tasks
 
@@ -151,6 +155,27 @@ uv run kodax_agent.py "continue development"
 # Resume next day
 uv run kodax_agent.py --session resume "continue yesterday's work"
 ```
+
+### Auto-Continue Mode
+
+For fully autonomous development until all features are complete:
+
+```bash
+# Initialize first
+uv run kodax_agent.py --init "build a REST API with authentication"
+
+# Auto-continue until all features pass (with safety limits)
+uv run kodax_agent.py --auto-continue
+
+# With custom limits
+uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+```
+
+Auto-continue stops automatically when:
+- All features in `feature_list.json` have `passes: true`
+- Max sessions reached (default: 50)
+- Max hours reached (default: 2.0)
+- Consecutive errors exceed threshold
 
 Based on [Anthropic's research](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) on long-running agents.
 

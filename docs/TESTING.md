@@ -316,6 +316,78 @@ uv run kodax_agent.py --provider zhipu-coding "继续开发"
 # 7. 结束前 git commit + 更新 PROGRESS.md
 ```
 
+### 18. --max-iter 参数
+
+```bash
+# 测试单次会话迭代限制
+uv run kodax_agent.py --provider zhipu-coding --max-iter 5 "列出当前目录下的所有文件"
+
+# 预期：Agent 在最多 5 次迭代内完成任务
+```
+
+```bash
+# 测试低迭代限制（可能无法完成复杂任务）
+uv run kodax_agent.py --provider zhipu-coding --max-iter 2 "创建 10 个测试文件"
+
+# 预期：Agent 在 2 次迭代后停止（可能未完成）
+```
+
+### 19. --auto-continue 模式
+
+```bash
+# 1. 首先初始化长运行项目
+uv run kodax_agent.py --provider zhipu-coding --init "构建简单的 TODO 应用"
+
+# 2. 检查创建的文件
+ls feature_list.json PROGRESS.md
+
+# 3. 运行 auto-continue（带限制，防止无限运行）
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 --max-hours 0.5
+
+# 预期：
+# - 显示 "[Kodax] Auto-continue mode enabled"
+# - 显示 feature 进度
+# - 自动运行多个 session
+# - 达到限制时显示停止原因
+```
+
+### 20. --auto-continue 依赖检查
+
+```bash
+# 在没有 feature_list.json 的目录运行 auto-continue
+cd /tmp
+uv run kodax_agent.py --provider zhipu-coding --auto-continue
+
+# 预期输出：
+# [Error] --auto-continue requires a long-running project.
+#        Run 'kodax_agent.py --init "your task"' first.
+```
+
+### 21. --auto-continue 安全阀
+
+```bash
+# 测试最大会话数限制
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 1
+
+# 预期：运行 1 个 session 后显示 "[Kodax] Max sessions reached (1)"
+```
+
+```bash
+# 测试最大小时数限制
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-hours 0.01
+
+# 预期：约 36 秒后显示 "[Kodax] Max hours reached (0.01h)"
+```
+
+```bash
+# 测试所有功能完成后的自动停止
+# 1. 手动修改 feature_list.json，将所有 passes 设为 true
+# 2. 运行 auto-continue
+uv run kodax_agent.py --provider zhipu-coding --auto-continue
+
+# 预期：显示 "[Kodax] All features completed! (N/N)"
+```
+
 ---
 
 ## P2 功能测试
@@ -497,6 +569,11 @@ uv run kodax_agent.py --session list
 | 项目快照 | `uv run kodax_agent.py "项目结构是什么"` | ☐ |
 | Todo 追踪 | 多步骤任务测试 | ☐ |
 | Undo | 修改后撤销测试 | ☐ |
+| --max-iter | `uv run kodax_agent.py --max-iter 5 "..."` | ☐ |
+| --init | `uv run kodax_agent.py --init "..."` | ☐ |
+| --auto-continue | `uv run kodax_agent.py --auto-continue` | ☐ |
+| --auto-continue 依赖检查 | 无 feature_list.json 时运行 | ☐ |
+| --auto-continue 安全阀 | --max-sessions / --max-hours 测试 | ☐ |
 
 ---
 

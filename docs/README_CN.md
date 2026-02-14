@@ -131,6 +131,10 @@ uv run kodax_agent.py /review src/main.py
 | `--parallel` | 并行执行工具 |
 | `--team TASKS` | 多 Agent 并行 |
 | `--init TASK` | 初始化长时间运行任务 |
+| `--auto-continue` | 自动继续直到所有功能完成 |
+| `--max-iter N` | 单次会话最大迭代次数（默认：50） |
+| `--max-sessions N` | --auto-continue 最大会话数（默认：50） |
+| `--max-hours H` | --auto-continue 最大小时数（默认：2.0） |
 
 ## 长时间运行任务
 
@@ -151,6 +155,27 @@ uv run kodax_agent.py "继续开发"
 # 第二天继续
 uv run kodax_agent.py --session resume "继续昨天的工作"
 ```
+
+### 自动继续模式
+
+完全自主开发，直到所有功能完成：
+
+```bash
+# 先初始化
+uv run kodax_agent.py --init "构建带认证的 REST API"
+
+# 自动继续直到所有功能通过（带安全限制）
+uv run kodax_agent.py --auto-continue
+
+# 自定义限制
+uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+```
+
+自动继续会在以下情况停止：
+- `feature_list.json` 中所有功能都标记为 `passes: true`
+- 达到最大会话数（默认：50）
+- 达到最大小时数（默认：2.0）
+- 连续错误超过阈值
 
 基于 [Anthropic 研究](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) 实现的长运行代理能力。
 
