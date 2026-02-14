@@ -914,7 +914,6 @@ uv run kodax_agent.py "修改 kodax_agent.py 添加新功能，然后撤销"
 **Initializer Agent** (`--init`):
 - 创建 `feature_list.json` - 所有功能的详细列表，初始 `passes: false`
 - 创建 `PROGRESS.md` - 进度日志
-- 创建 `init.sh` - 启动开发服务器脚本
 - 初始 git commit
 
 **Coding Agent** (后续运行):
@@ -990,10 +989,9 @@ At the start of EACH session:
 1. Run `pwd` to confirm working directory
 2. Read git logs and PROGRESS.md
 3. Read feature_list.json, pick ONE incomplete feature
-4. If init.sh exists, read it
-5. Test basic functionality before implementing
-6. Implement feature incrementally
-7. End with: git commit + update PROGRESS.md
+4. Test basic functionality before implementing
+5. Implement feature incrementally
+6. End with: git commit + update PROGRESS.md
 
 IMPORTANT:
 - Only change `passes` field in feature_list.json

@@ -200,7 +200,6 @@ uv run kodax_agent.py --init "build a claude.ai clone"
 # This creates:
 # - feature_list.json (all features with passes: false)
 # - PROGRESS.md (progress log)
-# - init.sh (dev server script)
 
 # Continue work (auto-detects long-running mode)
 uv run kodax_agent.py "continue development"

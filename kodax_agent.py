@@ -26,6 +26,7 @@ import argparse
 import json
 import time
 import re
+import datetime
 import importlib.util
 import asyncio
 import threading
@@ -84,7 +85,6 @@ FILE_BACKUPS: dict[str, str] = {}
 # 长时间运行状态文件
 FEATURES_FILE = "feature_list.json"
 PROGRESS_FILE = "PROGRESS.md"
-INIT_SCRIPT = "init.sh"
 
 # Promise 信号模式（Ralph-Loop 风格）
 PROMISE_PATTERN = re.compile(r'<promise>(COMPLETE|BLOCKED|DECIDE)(?::(.*?))?</promise>', re.IGNORECASE)
@@ -318,10 +318,9 @@ You are in a long-running task mode. At the start of EACH session, follow these 
 1. Run `pwd` to confirm your working directory
 2. Read git logs (`git log --oneline -10`) and PROGRESS.md to understand recent work
 3. Read feature_list.json and pick ONE incomplete feature (passes: false)
-4. If init.sh exists, read it to understand how to start the dev server
-5. Test basic functionality before implementing new features
-6. Implement the feature incrementally, testing as you go
-7. End session with: git commit + update PROGRESS.md
+4. Test basic functionality before implementing new features
+5. Implement the feature incrementally, testing as you go
+6. End session with: git commit + update PROGRESS.md
 
 IMPORTANT Rules:
 - Only change `passes` field in feature_list.json. NEVER remove or modify features.
@@ -1155,7 +1154,7 @@ def parse_args():
     parser.add_argument("--session", metavar="ID", help="Session ID (use 'resume', 'list', or specific ID)")
     parser.add_argument("--parallel", action="store_true", help="Enable parallel tool execution (P2)")
     parser.add_argument("--team", metavar="TASKS", help="Run multiple sub-agents in parallel (comma-separated tasks)")
-    parser.add_argument("--init", metavar="TASK", help="Initialize a long-running task (creates feature_list.json, PROGRESS.md, init.sh)")
+    parser.add_argument("--init", metavar="TASK", help="Initialize a long-running task (creates feature_list.json, PROGRESS.md)")
     parser.add_argument("--max-iter", type=int, default=50, help="Max iterations per session (default: 50)")
     parser.add_argument("--auto-continue", action="store_true", help="Auto-continue long-running task until all features pass (requires --init first)")
     parser.add_argument("--max-sessions", type=int, default=50, help="Max sessions for --auto-continue (default: 50)")
@@ -1409,11 +1408,19 @@ def main():
 
     # --init: 初始化长时间运行任务
     if args.init:
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        is_windows = os.name == "nt"
+        current_os = "Windows" if is_windows else "Unix/Linux"
+
         user_prompt = f"""Initialize a long-running project: {args.init}
+
+**Current Context:**
+- Date: {current_date}
+- OS: {current_os}
 
 Create these files in the current directory:
 
-1. **feature_list.json** - A comprehensive list of ALL features needed for this project.
+1. **feature_list.json** - A list of features for this project.
    Format:
    {{
      "features": [
@@ -1424,19 +1431,27 @@ Create these files in the current directory:
        }}
      ]
    }}
-   IMPORTANT: All features should have passes: false initially.
 
-2. **PROGRESS.md** - A progress log file with title:
+   **Feature Guidelines:**
+   - Aim for 10-15 features, NOT 40+
+   - Each "step" should be a SEPARATE feature (not a subtask within a feature)
+   - Keep each feature SMALL (completable in 1 session, ~30-60 min of work)
+   - Focus on MVP features first
+
+2. **PROGRESS.md** - A progress log file:
    # Progress Log
 
-3. **init.sh** (optional) - A script to start the development server if applicable.
-   Make it executable with: chmod +x init.sh
+   ## {current_date} - Project Initialization
 
-After creating these files, make an initial git commit:
+   ### Completed
+   - [x] Project initialized
+
+   ### Next Steps
+   - [ ] First feature to implement
+
+After creating files, make an initial git commit:
    git add .
    git commit -m "Initial commit: project setup for {args.init[:50]}"
-
-Be thorough when creating the feature list - break down the project into small, testable features.
 """
         print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
 

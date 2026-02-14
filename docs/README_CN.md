@@ -199,7 +199,6 @@ uv run kodax_agent.py --init "构建 claude.ai 克隆"
 # 这会创建：
 # - feature_list.json (所有功能，初始 passes: false)
 # - PROGRESS.md (进度日志)
-# - init.sh (开发服务器脚本)
 
 # 继续工作（自动检测长运行模式）
 uv run kodax_agent.py "继续开发"
