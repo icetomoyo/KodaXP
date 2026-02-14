@@ -1338,7 +1338,142 @@ API_MIN_INTERVAL = 0.5   # API 调用最小间隔（秒）
 
 ---
 
-## 10. 不实现的功能
+## 10.1 跨平台兼容性 (P0) ✅ 已完成
+
+### Windows 环境修复
+
+#### UTF-8 编码修复
+
+**问题**: Windows 中文环境下，`subprocess.run(..., text=True)` 使用系统默认编码 (GBK)，导致 UTF-8 字符（如中文 commit message）解码失败。
+
+**错误示例**:
+```
+UnicodeDecodeError: 'gbk' codec can't decode byte 0xae in position 64: illegal multibyte sequence
+```
+
+**解决方案**:
+```python
+case "bash":
+    timeout = input_data.get("timeout", 30)
+    try:
+        r = subprocess.run(
+            input_data["command"],
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',      # 强制 UTF-8
+            errors='replace',      # 无法解码时用 � 替代
+            timeout=timeout
+        )
+        return f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
+    except subprocess.TimeoutExpired:
+        return f"Timeout after {timeout}s"
+```
+
+#### 智能并行执行
+
+**问题**: `git add .` 和 `git commit` 并行执行会导致 `.git/index.lock` 竞争条件。
+
+**错误示例**:
+```
+fatal: Unable to create '.git/index.lock': File exists.
+```
+
+**解决方案**: Bash 命令顺序执行，其他命令（read, glob, grep）并行执行。
+
+```python
+def execute_tools_parallel(tool_calls: list, confirm_tools: set) -> list:
+    """智能并行执行：bash 命令顺序执行，其他命令并行执行"""
+    bash_indices, bash_calls = [], []
+    other_indices, other_calls = [], []
+
+    for i, tc in enumerate(tool_calls):
+        if tc["name"] == "bash":
+            bash_indices.append(i)
+            bash_calls.append(tc)
+        else:
+            other_indices.append(i)
+            other_calls.append(tc)
+
+    results = [None] * len(tool_calls)
+
+    # 1. 非 bash 命令并行执行
+    if other_calls:
+        other_results = asyncio.run(execute_tools_async(other_calls, confirm_tools))
+        for idx, result in zip(other_indices, other_results):
+            results[idx] = result
+
+    # 2. bash 命令顺序执行（避免 race condition）
+    for idx, tc in zip(bash_indices, bash_calls):
+        results[idx] = execute_tool(tc["name"], tc["input"], confirm_tools)
+
+    return results
+```
+
+### Thinking Blocks 保留 (P0) ✅ 已完成
+
+**问题**: Kimi Code Thinking Mode 多轮工具调用时报错：
+```
+thinking is enabled but reasoning_content is missing in assistant tool call message at index 2
+```
+
+**根因**: 当 `thinking` 启用时，每个 assistant 消息必须以 thinking block 开始，且包含 `signature` 字段。
+
+**解决方案**:
+
+1. 在 `AnthropicBaseProvider.stream()` 中提取完整的 thinking blocks：
+
+```python
+def stream(self, messages, tools, system, thinking=False):
+    text_blocks, tool_blocks, thinking_blocks = [], [], []
+    # ... streaming code ...
+
+    final = stream.get_final_message()
+    for block in final.content:
+        if block.type == "thinking":
+            thinking_blocks.append({
+                "type": "thinking",
+                "thinking": block.thinking,
+                "signature": getattr(block, "signature", "")  # 关键！
+            })
+        elif block.type == "redacted_thinking":
+            thinking_blocks.append({
+                "type": "redacted_thinking",
+                "data": getattr(block, "data", "")
+            })
+        # ... other blocks ...
+
+    return text_blocks, tool_blocks, thinking_blocks
+```
+
+2. 构建消息时 thinking blocks 放在最前面：
+
+```python
+assistant_content = []
+
+# 1. Thinking blocks 必须在最前面
+for tb in thinking_blocks:
+    assistant_content.append(tb)
+
+# 2. 然后是 text blocks
+for b in text_blocks:
+    assistant_content.append({"type": "text", "text": b["text"]})
+
+# 3. 最后是 tool_use blocks
+for b in tool_blocks:
+    assistant_content.append({"type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"]})
+
+session.messages.append({"role": "assistant", "content": assistant_content})
+```
+
+**关键点**:
+- Thinking blocks 必须在 content 数组的最前面
+- Signature 不可省略，即使为空也必须传递
+- 适用于所有使用 Anthropic API 的 Provider (anthropic, kimi-code, zhipu-coding)
+
+---
+
+## 11. 不实现的功能
 
 以下功能暂不考虑，原因如下：
 

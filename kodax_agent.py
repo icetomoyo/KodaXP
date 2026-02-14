@@ -684,7 +684,15 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
             case "bash":
                 timeout = input_data.get("timeout", 30)
                 try:
-                    r = subprocess.run(input_data["command"], shell=True, capture_output=True, text=True, timeout=timeout)
+                    r = subprocess.run(
+                        input_data["command"],
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8',
+                        errors='replace',
+                        timeout=timeout
+                    )
                     return f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
                 except subprocess.TimeoutExpired:
                     return f"Timeout after {timeout}s"
@@ -726,8 +734,38 @@ async def execute_tools_async(tool_calls: list, confirm_tools: set) -> list:
 
 
 def execute_tools_parallel(tool_calls: list, confirm_tools: set) -> list:
-    """同步包装: 并行执行多个工具"""
-    return asyncio.run(execute_tools_async(tool_calls, confirm_tools))
+    """智能并行执行：bash 命令顺序执行，其他命令并行执行
+
+    避免 git add 和 git commit 等有依赖关系的命令并行执行导致 race condition。
+    """
+    # 分离 bash 和非 bash 调用，同时记录原始索引
+    bash_indices = []
+    bash_calls = []
+    other_indices = []
+    other_calls = []
+
+    for i, tc in enumerate(tool_calls):
+        if tc["name"] == "bash":
+            bash_indices.append(i)
+            bash_calls.append(tc)
+        else:
+            other_indices.append(i)
+            other_calls.append(tc)
+
+    # 初始化结果列表（保持原始顺序）
+    results = [None] * len(tool_calls)
+
+    # 1. 非 bash 命令并行执行
+    if other_calls:
+        other_results = asyncio.run(execute_tools_async(other_calls, confirm_tools))
+        for idx, result in zip(other_indices, other_results):
+            results[idx] = result
+
+    # 2. bash 命令顺序执行（避免 race condition）
+    for idx, tc in zip(bash_indices, bash_calls):
+        results[idx] = execute_tool(tc["name"], tc["input"], confirm_tools)
+
+    return results
 
 
 def is_rate_limit_error(error: Exception) -> bool:

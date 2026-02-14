@@ -585,6 +585,82 @@ uv run kodax_agent.py --session list
 
 ---
 
+## Windows 环境兼容性测试 (P0)
+
+### 23. UTF-8 编码测试
+
+```bash
+# 测试中文输出
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "echo '测试中文输出'"
+
+# 预期：输出包含 "测试中文输出"，没有 UnicodeDecodeError
+```
+
+```bash
+# 测试中文 commit message
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+1. 创建 test_cn.txt，内容是 '测试'
+2. git add test_cn.txt
+3. git commit -m '添加测试文件'
+"
+
+# 预期：git commit 成功，没有 index.lock 错误，没有编码错误
+```
+
+### 24. Git 命令顺序执行测试
+
+```bash
+# 测试连续 git 命令不会触发 race condition
+uv run kodax_agent.py --provider zhipu-coding --parallel --no-confirm "
+1. git add .
+2. git status
+3. git log --oneline -3
+"
+
+# 预期：
+# 1. 没有 ".git/index.lock" 错误
+# 2. bash 命令顺序执行
+# 3. git status 等非 bash 命令可以并行
+```
+
+### 25. Thinking Mode 多轮测试
+
+```bash
+# 测试 kimi-code thinking mode 多轮工具调用
+uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
+1. 读取 README.md
+2. 总结主要内容
+"
+
+# 预期：
+# 1. 没有 "thinking is enabled but reasoning_content is missing" 错误
+# 2. 能正常执行多轮工具调用
+# 3. 显示 [Thinking] 块
+```
+
+```bash
+# 测试 zhipu-coding thinking mode
+uv run kodax_agent.py --provider zhipu-coding --thinking --no-confirm "
+1. 列出当前目录文件
+2. 找到所有 .md 文件
+"
+
+# 预期：同上
+```
+
+### 26. 跨平台路径测试
+
+```bash
+# 测试 Windows 路径处理
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+读取 C:/Works/Projects/KodaX/README.md 的前 10 行
+"
+
+# 预期：正确读取文件，路径处理正常
+```
+
+---
+
 ## 测试检查清单
 
 | 功能 | 测试命令 | 状态 |
@@ -613,6 +689,9 @@ uv run kodax_agent.py --session list
 | --auto-continue 依赖检查 | 无 feature_list.json 时运行 | ☐ |
 | --auto-continue 安全阀 | --max-sessions / --max-hours 测试 | ☐ |
 | Promise 信号 | Agent 主动发送 COMPLETE/BLOCKED/DECIDE | ☐ |
+| **Windows UTF-8 编码** | 中文输出测试 | ☐ |
+| **Git 顺序执行** | 并行模式下连续 git 命令 | ☐ |
+| **Thinking 多轮调用** | kimi-code/zhipu-coding thinking 多工具 | ☐ |
 
 ---
 

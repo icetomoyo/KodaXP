@@ -35,6 +35,7 @@ Kodax:           ~800 LOC, uv sync && go
 - **Thinking Mode** - Deep reasoning for complex tasks (supported providers)
 - **Context Aware** - Auto-injects Git status and project structure
 - **Undo Support** - Revert file modifications with the undo tool
+- **Cross-Platform** - Works on Windows, macOS, and Linux
 
 ## Quick Start
 
