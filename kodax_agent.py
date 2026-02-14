@@ -405,7 +405,7 @@ class AnthropicBaseProvider(Provider):
         self.client = anthropic.Anthropic(**kwargs)
 
     def stream(self, messages, tools, system, thinking=False):
-        text_blocks, tool_blocks = [], []
+        text_blocks, tool_blocks, thinking_blocks = [], [], []
         current_text = ""
         thinking_text = ""
         in_thinking = False
@@ -453,7 +453,20 @@ class AnthropicBaseProvider(Provider):
 
                 final = stream.get_final_message()
                 for block in final.content:
-                    if block.type == "text" and block.text:
+                    if block.type == "thinking":
+                        # 提取完整的 thinking block（含 signature）
+                        thinking_blocks.append({
+                            "type": "thinking",
+                            "thinking": block.thinking,
+                            "signature": getattr(block, "signature", "")
+                        })
+                    elif block.type == "redacted_thinking":
+                        # 处理 redacted thinking block
+                        thinking_blocks.append({
+                            "type": "redacted_thinking",
+                            "data": getattr(block, "data", "")
+                        })
+                    elif block.type == "text" and block.text:
                         if not text_blocks or text_blocks[-1].get("text") != block.text:
                             text_blocks.append({"type": "text", "text": block.text})
                     elif block.type == "tool_use":
@@ -464,7 +477,7 @@ class AnthropicBaseProvider(Provider):
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
         print()
-        return text_blocks, tool_blocks
+        return text_blocks, tool_blocks, thinking_blocks
 
 
 class AnthropicProvider(AnthropicBaseProvider):
@@ -782,12 +795,14 @@ class StreamingSubAgent:
         for _ in range(max_rounds):
             try:
                 # 使用带 Rate Limit 的 API 调用（实时流式输出）
-                text_blocks, tool_blocks = self._call_api_with_rate_limit(
+                text_blocks, tool_blocks, thinking_blocks = self._call_api_with_rate_limit(
                     self.messages, TOOLS, sub_system
                 )
 
-                # 构建 assistant content
+                # 构建 assistant content - thinking blocks 必须在最前面
                 assistant_content = []
+                for tb in thinking_blocks:
+                    assistant_content.append(tb)
                 for b in text_blocks:
                     assistant_content.append({"type": "text", "text": b["text"]})
                 for b in tool_blocks:
@@ -1189,7 +1204,7 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
                 def execute_tool(self, name, data): return execute_tool(name, data, set())
                 def call_llm(self, msgs):
                     provider = PROVIDERS[self.provider]()
-                    texts, _ = provider.stream(msgs, TOOLS, SYSTEM_PROMPT, self.thinking)
+                    texts, _, _ = provider.stream(msgs, TOOLS, SYSTEM_PROMPT, self.thinking)
                     return texts[0]["text"] if texts else ""
             result = skills[skill_name]["func"](AgentProxy(), skill_args)
             print(result)
@@ -1258,13 +1273,14 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
             messages = compact_messages(session.messages)
 
             # 流式调用
-            text_blocks, tool_blocks = provider.stream(messages, TOOLS, system_prompt, args.thinking)
+            text_blocks, tool_blocks, thinking_blocks = provider.stream(messages, TOOLS, system_prompt, args.thinking)
 
             # 保存最后一次文本响应（用于 promise 信号检测）
             last_text = " ".join([b.get("text", "") for b in text_blocks])
 
-            # 构建 assistant content
+            # 构建 assistant content - thinking blocks 必须在最前面
             assistant_content = []
+            for tb in thinking_blocks: assistant_content.append(tb)
             for b in text_blocks: assistant_content.append({"type": "text", "text": b["text"]})
             for b in tool_blocks: assistant_content.append({"type": "tool_use", "id": b["id"], "name": b["name"], "input": b["input"]})
             session.messages.append({"role": "assistant", "content": assistant_content})
