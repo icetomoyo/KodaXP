@@ -148,13 +148,14 @@ uv run kodax_agent.py "your task"
 - Code changes take effect immediately
 - Best for development and debugging
 
-**Option 2: Installed Command**
+**Option 2: Install as Global Tool**
 ```bash
-uv pip install -e .
+uv tool install -e .
 kodax "your task"
 ```
-- Shorter command
+- Shorter command, available from any directory
 - `-e` flag means editable mode (code changes still work)
+- Uninstall with `uv tool uninstall kodax`
 
 ### Setting Default Provider
 

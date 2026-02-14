@@ -148,13 +148,14 @@ uv run kodax_agent.py "你的任务"
 - 代码修改立即生效
 - 适合开发调试
 
-**方式二：安装后使用**
+**方式二：安装为全局工具**
 ```bash
-uv pip install -e .
+uv tool install -e .
 kodax "你的任务"
 ```
-- 命令更短
+- 命令更短，任何目录都能用 `kodax`
 - `-e` 表示可编辑模式，代码修改仍然生效
+- `uv tool uninstall kodax` 可以卸载
 
 ### 设置默认 Provider
 
