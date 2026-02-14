@@ -147,6 +147,8 @@ uv run kodax_agent.py /review src/main.py
 | `--parallel` | Parallel tool execution |
 | `--team TASKS` | Run multiple agents in parallel |
 | `--init TASK` | Initialize a long-running task |
+| `--append` | With --init: append to existing features |
+| `--overwrite` | With --init: overwrite existing features |
 | `--auto-continue` | Auto-continue until all features pass |
 | `--max-iter N` | Max iterations per session (default: 50) |
 | `--max-sessions N` | Max sessions for --auto-continue (default: 50) |
@@ -246,6 +248,33 @@ Auto-continue stops automatically when:
 - Max hours reached (default: 2.0)
 - Consecutive errors exceed threshold
 
+### Incremental Development
+
+After completing a project, you can add new features without losing history:
+
+```bash
+# Project already completed (all features pass)
+# Now add new features:
+
+# Option 1: Append new features (recommended)
+uv run kodax_agent.py --init "add search functionality" --append
+uv run kodax_agent.py --auto-continue
+
+# Option 2: Start fresh (lose history)
+uv run kodax_agent.py --init "new project" --overwrite
+```
+
+**Use `--append` for:**
+- Adding new features
+- Bug fixes (as new features)
+- Refactoring tasks
+- Performance optimizations
+
+**How it works:**
+- New features are appended to existing `feature_list.json`
+- Completed features (`passes: true`) are preserved
+- `--auto-continue` only processes incomplete features
+
 Based on [Anthropic's research](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) on long-running agents.
 
 ## How It Works
@@ -270,6 +299,10 @@ The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to un
 
 ### v0.1.0 (2026-02-14)
 
+- **Incremental Development**: Support for adding features to completed projects
+  - `--append` flag to add new features to existing `feature_list.json`
+  - `--overwrite` flag to start fresh
+  - Warning when running `--init` on existing project
 - **Error Handling Enhancement**: Improved error messages and recovery guidance
   - Error messages now show tool name and missing parameter clearly
   - Added explicit error handling guidance in system prompt

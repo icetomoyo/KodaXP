@@ -1249,6 +1249,8 @@ def parse_args():
     parser.add_argument("--parallel", action="store_true", help="Enable parallel tool execution (P2)")
     parser.add_argument("--team", metavar="TASKS", help="Run multiple sub-agents in parallel (comma-separated tasks)")
     parser.add_argument("--init", metavar="TASK", help="Initialize a long-running task (creates feature_list.json, PROGRESS.md)")
+    parser.add_argument("--append", action="store_true", help="With --init: append to existing feature_list.json")
+    parser.add_argument("--overwrite", action="store_true", help="With --init: overwrite existing feature_list.json")
     parser.add_argument("--max-iter", type=int, default=50, help="Max iterations per session (default: 50)")
     parser.add_argument("--auto-continue", action="store_true", help="Auto-continue long-running task until all features pass (requires --init first)")
     parser.add_argument("--max-sessions", type=int, default=50, help="Max sessions for --auto-continue (default: 50)")
@@ -1506,8 +1508,66 @@ def main():
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         is_windows = os.name == "nt"
         current_os = "Windows" if is_windows else "Unix/Linux"
+        features_path = Path(FEATURES_FILE)
 
-        user_prompt = f"""Initialize a long-running project: {args.init}
+        # 检查是否已有 feature_list.json
+        if features_path.exists():
+            # 读取现有 features 统计
+            try:
+                existing_data = json.loads(features_path.read_text(encoding="utf-8"))
+                existing_features = existing_data.get("features", [])
+                total = len(existing_features)
+                completed = sum(1 for f in existing_features if f.get("passes", False))
+            except Exception:
+                existing_features = []
+                total = 0
+                completed = 0
+
+            if args.append:
+                # 增量模式：追加新 features
+                print(f"\033[36m[Kodax]\033[0m Appending to existing project ({total} features, {completed} complete)")
+                print(f"\033[36m[Kodax]\033[0m Adding new features for: {args.init}")
+
+                user_prompt = f"""Add new features to an existing project: {args.init}
+
+**Current Context:**
+- Date: {current_date}
+- OS: {current_os}
+
+**Existing Features** (DO NOT modify these, keep them as-is):
+{json.dumps(existing_features, indent=2, ensure_ascii=False)}
+
+**Your Task**:
+1. Read the existing feature_list.json to understand what's already done
+2. Create NEW features for: {args.init}
+3. Use the EDIT tool to APPEND the new features to the existing feature_list.json
+   - Do NOT delete or modify existing features
+   - Just add new features to the "features" array
+4. Add a new section to PROGRESS.md for this phase (don't overwrite)
+
+**New Feature Guidelines:**
+- Aim for 5-10 NEW features (not 40+)
+- Keep each feature SMALL (completable in 1 session)
+- Each new feature should have "passes": false
+
+**Example of appending to feature_list.json:**
+Old: {{"features": [{{"description": "Old feature", "passes": true}}]}}
+New: {{"features": [
+  {{"description": "Old feature", "passes": true}},
+  {{"description": "New feature 1", "steps": [...], "passes": false}},
+  {{"description": "New feature 2", "steps": [...], "passes": false}}
+]}}
+
+After updating files, commit:
+   git add .
+   git commit -m "Add new features: {args.init[:50]}"
+"""
+            elif args.overwrite:
+                # 覆盖模式：清空历史
+                print(f"\033[33m[Warning]\033[0m Overwriting existing feature_list.json ({total} features will be lost)")
+                print(f"\033[36m[Kodax]\033[0m Initializing fresh project: {args.init}")
+
+                user_prompt = f"""Initialize a long-running project: {args.init}
 
 **Current Context:**
 - Date: {current_date}
@@ -1548,7 +1608,63 @@ After creating files, make an initial git commit:
    git add .
    git commit -m "Initial commit: project setup for {args.init[:50]}"
 """
-        print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
+            else:
+                # 默认：显示警告并退出
+                print(f"\n\033[33m[Warning]\033[0m feature_list.json already exists!")
+                print(f"  Current: {total} features ({completed} complete, {total - completed} pending)")
+                print()
+                print("  Options:")
+                print("  --append      Add new features to existing list (recommended)")
+                print("  --overwrite   Start fresh (existing features will be lost)")
+                print()
+                print("Example:")
+                print(f"  uv run kodax_agent.py --init \"{args.init}\" --append")
+                sys.exit(1)
+        else:
+            # 没有现有文件，正常初始化
+            print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
+
+            user_prompt = f"""Initialize a long-running project: {args.init}
+
+**Current Context:**
+- Date: {current_date}
+- OS: {current_os}
+
+Create these files in the current directory:
+
+1. **feature_list.json** - A list of features for this project.
+   Format:
+   {{
+     "features": [
+       {{
+         "description": "Feature description (clear and testable)",
+         "steps": ["step 1", "step 2", "step 3"],
+         "passes": false
+       }}
+     ]
+   }}
+
+   **Feature Guidelines:**
+   - Aim for 10-15 features, NOT 40+
+   - Each "step" should be a SEPARATE feature (not a subtask within a feature)
+   - Keep each feature SMALL (completable in 1 session, ~30-60 min of work)
+   - Focus on MVP features first
+
+2. **PROGRESS.md** - A progress log file:
+   # Progress Log
+
+   ## {current_date} - Project Initialization
+
+   ### Completed
+   - [x] Project initialized
+
+   ### Next Steps
+   - [ ] First feature to implement
+
+After creating files, make an initial git commit:
+   git add .
+   git commit -m "Initial commit: project setup for {args.init[:50]}"
+"""
 
     # --team 和 --parallel 不需要位置参数
     if not user_prompt and not args.team and not args.parallel and not args.init:
@@ -1564,6 +1680,8 @@ After creating files, make an initial git commit:
         print("  --parallel         Enable parallel tool execution (P2)")
         print("  --team TASKS       Run multiple sub-agents in parallel (comma-separated)")
         print("  --init TASK        Initialize a long-running task")
+        print("  --append           With --init: append to existing feature_list.json")
+        print("  --overwrite        With --init: overwrite existing feature_list.json")
         print("  --max-iter N       Max iterations per session (default: 50)")
         print("  --auto-continue    Auto-continue long-running task until all features pass")
         print("  --max-sessions N   Max sessions for --auto-continue (default: 50)")

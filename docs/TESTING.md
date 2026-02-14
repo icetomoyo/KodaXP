@@ -425,6 +425,93 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 5
 # 并退出循环等待用户输入
 ```
 
+### 23. 增量开发测试 (--append 和 --overwrite)
+
+测试在已完成的项目上添加新功能。
+
+```bash
+# 1. 第一次 init（创建初始项目）
+uv run kodax_agent.py --provider zhipu-coding --init "构建基础 TODO 应用"
+
+# 2. 完成所有功能
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 20
+
+# 3. 尝试第二次 init（无 --append 或 --overwrite）
+uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能"
+
+# 预期输出：
+# [Warning] feature_list.json already exists!
+#   Current: X features (Y complete, Z pending)
+#
+#   Options:
+#   --append      Add new features to existing list (recommended)
+#   --overwrite   Start fresh (existing features will be lost)
+#
+#   Example:
+#   uv run kodax_agent.py --init "添加搜索功能" --append
+```
+
+```bash
+# 4. 使用 --append 增量添加
+uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能" --append
+
+# 预期：
+# [Kodax] Appending to existing project (X features, Y complete)
+# [Kodax] Adding new features for: 添加搜索功能
+# Agent 使用 EDIT 工具追加新 features 到 feature_list.json
+
+# 检查 feature_list.json：
+# - 原有 features 应该保留（passes: true）
+# - 新 features 应该添加在后面（passes: false）
+```
+
+```bash
+# 5. 继续运行 --auto-continue
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 10
+
+# 预期：
+# - 只处理 passes: false 的新 features
+# - 已完成的 features 不会被重复处理
+```
+
+```bash
+# 6. 使用 --overwrite 完全重置
+uv run kodax_agent.py --provider zhipu-coding --init "全新项目" --overwrite
+
+# 预期输出：
+# [Warning] Overwriting existing feature_list.json (X features will be lost)
+# [Kodax] Initializing fresh project: 全新项目
+
+# 检查 feature_list.json：
+# - 旧 features 全部丢失
+# - 只有新项目的 features
+```
+
+### 24. 增量开发场景测试
+
+测试不同场景下的增量开发。
+
+```bash
+# 场景 1：Bug 修复作为新 feature
+uv run kodax_agent.py --provider zhipu-coding --init "修复用户输入验证的 bug" --append
+
+# 预期：新 feature "Fix: user input validation bug" 被添加到列表
+```
+
+```bash
+# 场景 2：重构作为新 feature
+uv run kodax_agent.py --provider zhipu-coding --init "重构数据库访问层" --append
+
+# 预期：新 feature "Refactor: database access layer" 被添加到列表
+```
+
+```bash
+# 场景 3：性能优化作为新 feature
+uv run kodax_agent.py --provider zhipu-coding --init "优化查询性能" --append
+
+# 预期：新 feature "Optimize: query performance" 被添加到列表
+```
+
 ---
 
 ## P2 功能测试
