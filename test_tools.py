@@ -199,6 +199,43 @@ def test_subagent():
     print("  ✓ Sub-agent function available")
 
 
+def test_promise_signals():
+    print("\n" + "=" * 50)
+    print("Testing promise signals (Ralph-Loop style)")
+    print("=" * 50)
+
+    from kodax_agent import check_promise_signal
+
+    # 测试 COMPLETE 信号
+    signal, reason = check_promise_signal("Great work! <promise>COMPLETE</promise>")
+    assert signal == "COMPLETE"
+    assert reason == ""
+    print("  ✓ COMPLETE signal detected")
+
+    # 测试 BLOCKED 信号带原因
+    signal, reason = check_promise_signal("I'm stuck: <promise>BLOCKED:Need API key</promise>")
+    assert signal == "BLOCKED"
+    assert reason == "Need API key"
+    print("  ✓ BLOCKED signal with reason detected")
+
+    # 测试 DECIDE 信号
+    signal, reason = check_promise_signal("<promise>DECIDE:Which framework to use?</promise>")
+    assert signal == "DECIDE"
+    assert reason == "Which framework to use?"
+    print("  ✓ DECIDE signal with reason detected")
+
+    # 测试无信号
+    signal, reason = check_promise_signal("This is normal output without any promise")
+    assert signal == ""
+    assert reason == ""
+    print("  ✓ No signal in normal text")
+
+    # 测试大小写不敏感
+    signal, reason = check_promise_signal("<promise>complete</promise>")
+    assert signal == "COMPLETE"
+    print("  ✓ Case-insensitive detection")
+
+
 if __name__ == "__main__":
     test_tools()
     test_token_estimation()
@@ -208,6 +245,7 @@ if __name__ == "__main__":
     test_skills()
     test_parallel_execution()
     test_subagent()
+    test_promise_signals()
 
     print("\n" + "=" * 50)
     print("ALL P1 + P2 TESTS PASSED!")

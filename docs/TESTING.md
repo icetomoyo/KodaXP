@@ -388,6 +388,43 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue
 # 预期：显示 "[Kodax] All features completed! (N/N)"
 ```
 
+### 22. Promise 信号系统 (Ralph-Loop 风格)
+
+Agent 可以通过特殊信号与 auto-continue 循环通信。
+
+```bash
+# 测试 Promise COMPLETE 信号
+# Agent 完成所有功能时应输出:
+# <promise>COMPLETE</promise>
+
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 5
+
+# 预期：如果 Agent 输出 <promise>COMPLETE</promise>，则显示:
+# [Kodax Auto-Continue] Agent signaled COMPLETE
+# 并退出循环
+```
+
+```bash
+# 测试 Promise BLOCKED 信号
+# Agent 遇到阻塞时应输出:
+# <promise>BLOCKED:原因描述</promise>
+
+# 预期：如果 Agent 输出 <promise>BLOCKED:Need API key</promise>，则显示:
+# [Kodax Auto-Continue] Agent BLOCKED: Need API key
+# Waiting for human intervention...
+# 并退出循环
+```
+
+```bash
+# 测试 Promise DECIDE 信号
+# Agent 需要用户决策时应输出:
+# <promise>DECIDE:问题</promise>
+
+# 预期：如果 Agent 输出 <promise>DECIDE:Which framework?</promise>，则显示:
+# [Kodax Auto-Continue] Agent needs decision: Which framework?
+# 并退出循环等待用户输入
+```
+
 ---
 
 ## P2 功能测试
@@ -575,6 +612,7 @@ uv run kodax_agent.py --session list
 | --auto-continue | `uv run kodax_agent.py --auto-continue` | ☐ |
 | --auto-continue 依赖检查 | 无 feature_list.json 时运行 | ☐ |
 | --auto-continue 安全阀 | --max-sessions / --max-hours 测试 | ☐ |
+| Promise 信号 | Agent 主动发送 COMPLETE/BLOCKED/DECIDE | ☐ |
 
 ---
 

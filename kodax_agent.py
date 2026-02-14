@@ -25,6 +25,7 @@ import subprocess
 import argparse
 import json
 import time
+import re
 import importlib.util
 import asyncio
 import threading
@@ -85,6 +86,21 @@ FILE_BACKUPS: dict[str, str] = {}
 FEATURES_FILE = "feature_list.json"
 PROGRESS_FILE = "PROGRESS.md"
 INIT_SCRIPT = "init.sh"
+
+# Promise 信号模式（Ralph-Loop 风格）
+PROMISE_PATTERN = re.compile(r'<promise>(COMPLETE|BLOCKED|DECIDE)(?::(.*?))?</promise>', re.IGNORECASE)
+
+def check_promise_signal(text: str) -> tuple[str, str]:
+    """检查 Agent 输出中的 promise 信号
+
+    返回: (signal_type, reason)
+    - signal_type: "COMPLETE", "BLOCKED", "DECIDE" 或空字符串
+    - reason: 附加说明（如果有）
+    """
+    match = PROMISE_PATTERN.search(text)
+    if match:
+        return match.group(1).upper(), match.group(2) or ""
+    return "", ""
 
 # ============ 上下文增强 ============
 def get_git_context() -> str:
@@ -313,6 +329,24 @@ IMPORTANT Rules:
 - Leave codebase in clean state after each session (no half-implemented features).
 - Work on ONE feature at a time. Do not start new features until current one is complete.
 - Always verify features work end-to-end before marking as passing.
+
+## Promise Signals (Ralph-Loop Style)
+
+When you need to communicate status to the orchestrator, use these special signals:
+
+<promise>COMPLETE</promise>
+  - Use when ALL features in feature_list.json have passes: true
+  - This will stop the auto-continue loop
+
+<promise>BLOCKED:reason</promise>
+  - Use when you are stuck and need human intervention
+  - Example: <promise>BLOCKED:Need API key for external service</promise>
+
+<promise>DECIDE:question</promise>
+  - Use when you need a decision from the user
+  - Example: <promise>DECIDE:Should I use PostgreSQL or MongoDB?</promise>
+
+Only use these signals when necessary. Normal operation does not require them.
 """
 
 
@@ -1210,7 +1244,7 @@ def parse_args():
 
 
 # ============ 主循环 ============
-def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
+def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[bool, str]:
     """运行单个 session
 
     Args:
@@ -1219,7 +1253,8 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
         session_id: 会话 ID（可选）
 
     Returns:
-        True 如果 session 正常完成
+        (success, last_text) - success 为 True 如果 session 正常完成
+        last_text 为最后一次 assistant 响应的文本内容（用于 promise 信号检测）
     """
     # 会话管理
     session = Session.load(session_id) if session_id else Session(id=time.strftime("%Y%m%d_%H%M%S"), messages=[])
@@ -1239,10 +1274,10 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
                     return texts[0]["text"] if texts else ""
             result = skills[skill_name]["func"](AgentProxy(), skill_args)
             print(result)
-            return True
+            return True, result
         else:
             print(f"Unknown skill: {skill_name}")
-            return False
+            return False, ""
 
     # 确认工具
     confirm_tools = set() if args.no_confirm else (set(args.confirm.split(",")) if args.confirm else DEFAULT_CONFIRM_TOOLS)
@@ -1252,10 +1287,10 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
         provider = PROVIDERS[args.provider]()
     except KeyError:
         print(f"Unknown provider: {args.provider}")
-        return False
+        return False, ""
     except Exception as e:
         print(f"Failed to initialize provider: {e}")
-        return False
+        return False, ""
 
     # 构建上下文（Git + 项目快照 + 长运行模式）
     context_parts = []
@@ -1295,6 +1330,7 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
     print()
 
     iteration, max_iter = 0, args.max_iter
+    last_text = ""  # 用于 promise 信号检测
 
     while iteration < max_iter:
         iteration += 1
@@ -1304,6 +1340,9 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
 
             # 流式调用
             text_blocks, tool_blocks = provider.stream(messages, TOOLS, system_prompt, args.thinking)
+
+            # 保存最后一次文本响应（用于 promise 信号检测）
+            last_text = " ".join([b.get("text", "") for b in text_blocks])
 
             # 构建 assistant content
             assistant_content = []
@@ -1349,7 +1388,7 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> bool:
     if iteration >= max_iter:
         print("\n\033[33m[Kodax]\033[0m Max iterations reached")
 
-    return True
+    return True, last_text
 
 
 def main():
@@ -1413,10 +1452,29 @@ def main():
 
             # 运行一个 session
             prompt = user_prompt if user_prompt else "Continue implementing features from feature_list.json"
-            success = run_single_session(args, prompt)
+            success, last_text = run_single_session(args, prompt)
 
             if not success:
                 print(f"\n\033[31m[Kodax Auto-Continue]\033[0m Session failed, stopping")
+                break
+
+            # 检查 Promise 信号（Ralph-Loop 风格）
+            signal, reason = check_promise_signal(last_text)
+            if signal == "COMPLETE":
+                print("\n" + "=" * 60)
+                print(f"\033[32m[Kodax Auto-Continue]\033[0m Agent signaled COMPLETE")
+                print("=" * 60)
+                break
+            elif signal == "BLOCKED":
+                print("\n" + "=" * 60)
+                print(f"\033[33m[Kodax Auto-Continue]\033[0m Agent BLOCKED: {reason}")
+                print("Waiting for human intervention...")
+                print("=" * 60)
+                break
+            elif signal == "DECIDE":
+                print("\n" + "=" * 60)
+                print(f"\033[36m[Kodax Auto-Continue]\033[0m Agent needs decision: {reason}")
+                print("=" * 60)
                 break
 
         # 显示最终状态

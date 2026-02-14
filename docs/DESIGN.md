@@ -1148,6 +1148,72 @@ uv run kodax_agent.py --auto-continue --max-iter 30
 | **语义配对** | `--init` 初始化，`--auto-continue` 持续运行 |
 | **安全阀** | 自动停止条件，无需人工干预 |
 
+### 9.9 Promise 信号系统 (Ralph-Loop 风格)
+
+借鉴 Anthropic 官方插件 **Ralph Loop (Ralph Wiggum)** 的设计，KodaX 实现了 Promise 信号系统，让 Agent 能够主动与 auto-continue 循环通信。
+
+#### 背景
+
+**Ralph Loop** 是 Anthropic 官方维护的插件，核心创新是用特殊标记让 Agent 主动通信状态：
+- `<promise>COMPLETE</promise>` - 任务完成
+- `<promise>BLOCKED:reason</promise>` - 需要人类帮助
+- `<promise>DECIDE:question</promise>` - 需要用户决策
+
+#### 实现
+
+**检测函数**:
+```python
+PROMISE_PATTERN = re.compile(r'<promise>(COMPLETE|BLOCKED|DECIDE)(?::(.*?))?</promise>', re.IGNORECASE)
+
+def check_promise_signal(text: str) -> tuple[str, str]:
+    """检查 Agent 输出中的 promise 信号"""
+    match = PROMISE_PATTERN.search(text)
+    if match:
+        return match.group(1).upper(), match.group(2) or ""
+    return "", ""
+```
+
+**auto-continue 循环集成**:
+```python
+# 运行 session 后检查信号
+success, last_text = run_single_session(args, prompt)
+
+signal, reason = check_promise_signal(last_text)
+if signal == "COMPLETE":
+    print("[Kodax Auto-Continue] Agent signaled COMPLETE")
+    break
+elif signal == "BLOCKED":
+    print(f"[Kodax Auto-Continue] Agent BLOCKED: {reason}")
+    break
+elif signal == "DECIDE":
+    print(f"[Kodax Auto-Continue] Agent needs decision: {reason}")
+    break
+```
+
+**提示词引导**:
+```
+## Promise Signals (Ralph-Loop Style)
+
+When you need to communicate status to the orchestrator, use these special signals:
+
+<promise>COMPLETE</promise>       - All features are done
+<promise>BLOCKED:reason</promise>  - Need human intervention
+<promise>DECIDE:question</promise> - Need a decision from user
+```
+
+#### 与 Ralph Loop 对比
+
+| 特性 | Ralph Loop | KodaX |
+|------|------------|-------|
+| **信号系统** | ✅ Promise tags | ✅ Promise tags |
+| **Stop Hook** | ✅ 拦截退出 | ❌ 使用 --auto-continue |
+| **Initializer Agent** | ❌ | ✅ `--init` |
+| **Feature List** | ❌ | ✅ `feature_list.json` |
+| **Progress File** | ✅ txt | ✅ Markdown |
+| **时间限制** | ❌ | ✅ `--max-hours` |
+
+KodaX 结合了 Ralph Loop 的信号系统和 Anthropic Engineering Blog 推荐的状态管理，形成更完整的解决方案。
+
 ---
 
 ## 10. Agent Team (P2) ✅ 已完成
