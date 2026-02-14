@@ -159,7 +159,7 @@ kodax "your task"
 
 **Option 1: Environment Variable**
 ```bash
-export KODA_PROVIDER=kimi-code
+export KODAX_PROVIDER=kimi-code
 uv run kodax_agent.py "your task"  # Uses kimi-code
 ```
 
@@ -169,7 +169,7 @@ uv run kodax_agent.py "your task"  # Uses kimi-code
 alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
 ```
 
-**Priority**: `--provider` CLI arg > `KODA_PROVIDER` env > default (zhipu-coding)
+**Priority**: `--provider` CLI arg > `KODAX_PROVIDER` env > default (zhipu-coding)
 
 ### API Keys
 

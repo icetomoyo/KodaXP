@@ -159,7 +159,7 @@ kodax "你的任务"
 
 **方式一：环境变量**
 ```bash
-export KODA_PROVIDER=kimi-code
+export KODAX_PROVIDER=kimi-code
 uv run kodax_agent.py "你的任务"  # 使用 kimi-code
 ```
 
@@ -169,7 +169,7 @@ uv run kodax_agent.py "你的任务"  # 使用 kimi-code
 alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
 ```
 
-**优先级**：`--provider` 命令行参数 > `KODA_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
+**优先级**：`--provider` 命令行参数 > `KODAX_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
 
 ### API Key 配置
 
