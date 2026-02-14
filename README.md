@@ -308,7 +308,7 @@ The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to un
   - Added explicit error handling guidance in system prompt
   - Model is instructed not to repeat the same tool call errors
 - **Hard Timeout**: Bash commands capped at 300s max (configurable)
-- **Windows Compatibility**: OEM encoding for correct Chinese output
+- **Windows Compatibility**: Smart decode (UTF-8 first, OEM fallback) for bash output
 - **Documentation**: Added LONG_RUNNING_GUIDE.md with best practices
 
 ## License
