@@ -77,9 +77,9 @@ uv run kodax_agent.py --team "analyze code structure,check test coverage,find bu
 
 | Provider | API Key | Thinking | Notes |
 |----------|---------|----------|-------|
-| Anthropic | `ANTHROPIC_API_KEY` | Yes | Claude (default) |
+| Zhipu Coding | `ZHIPU_API_KEY` | Yes | GLM-5, Chinese-friendly (default) |
 | Kimi Code | `KIMI_API_KEY` | Yes | K2.5, great value |
-| Zhipu Coding | `ZHIPU_API_KEY` | Yes | GLM-5, Chinese-friendly |
+| Anthropic | `ANTHROPIC_API_KEY` | Yes | Claude |
 | Kimi | `KIMI_API_KEY` | No | Moonshot |
 | Zhipu | `ZHIPU_API_KEY` | No | GLM-4 |
 | Qwen | `QWEN_API_KEY` | No | Tongyi |
@@ -135,6 +135,59 @@ uv run kodax_agent.py /review src/main.py
 | `--max-iter N` | Max iterations per session (default: 50) |
 | `--max-sessions N` | Max sessions for --auto-continue (default: 50) |
 | `--max-hours H` | Max hours for --auto-continue (default: 2.0) |
+
+## Best Practices
+
+### Running Kodax
+
+**Option 1: Direct Execution (Recommended for Development)**
+```bash
+uv run kodax_agent.py "your task"
+```
+- Code changes take effect immediately
+- Best for development and debugging
+
+**Option 2: Installed Command**
+```bash
+uv pip install -e .
+kodax "your task"
+```
+- Shorter command
+- `-e` flag means editable mode (code changes still work)
+
+### Setting Default Provider
+
+**Option 1: Environment Variable**
+```bash
+export KODA_PROVIDER=kimi-code
+uv run kodax_agent.py "your task"  # Uses kimi-code
+```
+
+**Option 2: Shell Alias**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
+```
+
+**Priority**: `--provider` CLI arg > `KODA_PROVIDER` env > default (zhipu-coding)
+
+### API Keys
+
+Set the API key for your provider:
+```bash
+export ZHIPU_API_KEY=your-key      # Zhipu Coding (default)
+export KIMI_API_KEY=your-key       # Kimi / Kimi Code
+export ANTHROPIC_API_KEY=your-key  # Anthropic Claude
+export QWEN_API_KEY=your-key       # Qwen
+export OPENAI_API_KEY=your-key     # OpenAI
+```
+
+### Tips
+
+- Use `--thinking` for complex reasoning tasks (supported: zhipu-coding, kimi-code, anthropic)
+- Use `--parallel` for tasks involving multiple independent files
+- Use `--team` for unrelated parallel tasks (e.g., "analyze code,write tests,update docs")
+- Sessions are project-scoped (based on git root), so you won't mix contexts
 
 ## Long-Running Tasks
 

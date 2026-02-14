@@ -77,9 +77,9 @@ uv run kodax_agent.py --team "分析代码结构,检查测试覆盖率,查找 bu
 
 | 模型 | API Key | 思考模式 | 说明 |
 |------|---------|----------|------|
-| Anthropic | `ANTHROPIC_API_KEY` | 支持 | Claude（默认） |
+| 智谱 Coding | `ZHIPU_API_KEY` | 支持 | GLM-5，中文友好（默认） |
 | Kimi Code | `KIMI_API_KEY` | 支持 | K2.5，性价比高 |
-| 智谱 Coding | `ZHIPU_API_KEY` | 支持 | GLM-5，中文友好 |
+| Anthropic | `ANTHROPIC_API_KEY` | 支持 | Claude |
 | Kimi | `KIMI_API_KEY` | 不支持 | Moonshot |
 | 智谱 | `ZHIPU_API_KEY` | 不支持 | GLM-4 |
 | 通义千问 | `QWEN_API_KEY` | 不支持 | Qwen |
@@ -135,6 +135,58 @@ uv run kodax_agent.py /review src/main.py
 | `--max-iter N` | 单次会话最大迭代次数（默认：50） |
 | `--max-sessions N` | --auto-continue 最大会话数（默认：50） |
 | `--max-hours H` | --auto-continue 最大小时数（默认：2.0） |
+
+## 最佳实践
+
+### 运行方式
+
+**方式一：直接运行（推荐开发时使用）**
+```bash
+uv run kodax_agent.py "你的任务"
+```
+- 代码修改立即生效
+- 适合开发调试
+
+**方式二：安装后使用**
+```bash
+uv pip install -e .
+kodax "你的任务"
+```
+- 命令更短
+- `-e` 表示可编辑模式，代码修改仍然生效
+
+### 设置默认 Provider
+
+**方式一：环境变量**
+```bash
+export KODA_PROVIDER=kimi-code
+uv run kodax_agent.py "你的任务"  # 使用 kimi-code
+```
+
+**方式二：Shell Alias**
+```bash
+# 添加到 ~/.bashrc 或 ~/.zshrc
+alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
+```
+
+**优先级**：`--provider` 命令行参数 > `KODA_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
+
+### API Key 配置
+
+```bash
+export ZHIPU_API_KEY=your-key      # 智谱 Coding（默认）
+export KIMI_API_KEY=your-key       # Kimi / Kimi Code
+export ANTHROPIC_API_KEY=your-key  # Anthropic Claude
+export QWEN_API_KEY=your-key       # 通义千问
+export OPENAI_API_KEY=your-key     # OpenAI
+```
+
+### 使用技巧
+
+- 复杂推理任务使用 `--thinking`（支持：zhipu-coding、kimi-code、anthropic）
+- 涉及多个独立文件的任务使用 `--parallel`
+- 不相关的并行任务使用 `--team`（如："分析代码,写测试,更新文档"）
+- 会话是项目级别的（基于 git root），不会混淆上下文
 
 ## 长时间运行任务
 

@@ -177,11 +177,11 @@ def stream_llm(messages: list) -> tuple[list, list]:
 
 | Provider | 环境变量 | 默认模型 | 兼容类型 | Thinking |
 |----------|----------|----------|----------|----------|
+| **智谱 Coding** | `ZHIPU_API_KEY` | glm-5 | Anthropic | ✅ (默认) |
+| **Kimi Code** | `KIMI_API_KEY` | k2p5 | Anthropic | ✅ |
 | **Anthropic** | `ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 | 原生 | ✅ |
 | **Kimi (Moonshot)** | `KIMI_API_KEY` | moonshot-v1-128k | OpenAI | ❌ |
-| **Kimi Code** | `KIMI_API_KEY` | k2p5 | Anthropic | ✅ |
 | **智谱AI** | `ZHIPU_API_KEY` | glm-4-plus | zhipuai SDK | ❌ |
-| **智谱 Coding** | `ZHIPU_API_KEY` | glm-5 | Anthropic | ✅ |
 | **Qwen (阿里云)** | `QWEN_API_KEY` | qwen-max | OpenAI | ❌ |
 | **OpenAI** | `OPENAI_API_KEY` | gpt-4o | 原生 | ❌ |
 
@@ -377,17 +377,22 @@ class ZhipuProvider(Provider):
 
 ### 4.7 CLI 配置
 
+**优先级**: `--provider` 命令行参数 > `KODA_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
+
 ```bash
-# 方式 1: 环境变量
-export KODA_PROVIDER=kimi
+# 使用默认 Provider (zhipu-coding)
+uv run kodax_agent.py "你的任务"
+
+# 方式 1: 环境变量设置默认 Provider
+export KODA_PROVIDER=kimi-code
 export KIMI_API_KEY=your-key
 uv run kodax_agent.py "你的任务"
 
-# 方式 2: 命令行参数
-uv run kodax_agent.py --provider zhipu "你的任务"
+# 方式 2: 命令行参数覆盖
+uv run kodax_agent.py --provider anthropic "你的任务"
 
 # 启用 Thinking Mode (仅 Anthropic, Kimi Code, 智谱 Coding 支持)
-uv run kodax_agent.py --provider kimi-code --thinking "复杂任务"
+uv run kodax_agent.py --provider zhipu-coding --thinking "复杂任务"
 ```
 
 ### 4.8 依赖配置

@@ -1147,7 +1147,8 @@ def load_skills() -> dict:
 def parse_args():
     parser = argparse.ArgumentParser(description="Kodax Agent - 极致轻量化 Coding Agent")
     parser.add_argument("prompt", nargs="*", help="Your coding task")
-    parser.add_argument("--provider", choices=list(PROVIDERS.keys()), default="anthropic", help="LLM provider")
+    parser.add_argument("--provider", choices=list(PROVIDERS.keys()),
+                        default=os.environ.get("KODA_PROVIDER", "zhipu-coding"), help="LLM provider")
     parser.add_argument("--thinking", action="store_true", help="Enable thinking mode (Anthropic only)")
     parser.add_argument("--confirm", metavar="TOOLS", help="Tools requiring confirmation")
     parser.add_argument("--no-confirm", action="store_true", help="Disable all confirmations")
