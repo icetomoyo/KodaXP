@@ -1342,33 +1342,45 @@ API_MIN_INTERVAL = 0.5   # API 调用最小间隔（秒）
 
 ### Windows 环境修复
 
-#### UTF-8 编码修复
+#### 编码修复
 
-**问题**: Windows 中文环境下，`subprocess.run(..., text=True)` 使用系统默认编码 (GBK)，导致 UTF-8 字符（如中文 commit message）解码失败。
+**问题**: Windows 中文环境下，`subprocess.run` 的输出编码问题。
 
-**错误示例**:
+- **v0.6.0 尝试**：强制 `encoding='utf-8'` - 但 cmd.exe 输出是 GBK 编码，导致中文乱码
+- **v0.6.1 修复**：使用 `encoding='oem'` - 自动匹配 Windows 控制台编码（中文环境是 GBK）
+
+**错误示例 (v0.6.0)**:
 ```
-UnicodeDecodeError: 'gbk' codec can't decode byte 0xae in position 64: illegal multibyte sequence
+[Result] Exit: 1
+'pwd' 不是内部或外部命令，也不是可运行的程序或批处理文件。
 ```
 
-**解决方案**:
+**解决方案 (v0.6.1)**:
 ```python
 case "bash":
     timeout = input_data.get("timeout", 30)
     try:
+        # Windows 使用 OEM 编码（GBK），其他系统使用 UTF-8
+        encoding = 'oem' if sys.platform == 'win32' else 'utf-8'
+
         r = subprocess.run(
             input_data["command"],
             shell=True,
             capture_output=True,
             text=True,
-            encoding='utf-8',      # 强制 UTF-8
-            errors='replace',      # 无法解码时用 � 替代
+            encoding=encoding,
+            errors='replace',
             timeout=timeout
         )
         return f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
     except subprocess.TimeoutExpired:
         return f"Timeout after {timeout}s"
 ```
+
+**关键点**:
+- `'oem'` 是 Python 特殊编码名称，自动使用当前控制台的代码页
+- 中文 Windows 默认是 GBK (cp936)
+- 这样能正确显示 cmd.exe 的中文错误消息
 
 #### 智能并行执行
 

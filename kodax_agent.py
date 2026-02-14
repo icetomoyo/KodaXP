@@ -684,12 +684,15 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
             case "bash":
                 timeout = input_data.get("timeout", 30)
                 try:
+                    # Windows 使用 OEM 编码（GBK），其他系统使用 UTF-8
+                    encoding = 'oem' if sys.platform == 'win32' else 'utf-8'
+
                     r = subprocess.run(
                         input_data["command"],
                         shell=True,
                         capture_output=True,
                         text=True,
-                        encoding='utf-8',
+                        encoding=encoding,
                         errors='replace',
                         timeout=timeout
                     )
