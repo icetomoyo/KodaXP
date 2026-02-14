@@ -40,6 +40,10 @@ from concurrent.futures import ThreadPoolExecutor
 MAX_TOKENS = 4096
 DEFAULT_CONFIRM_TOOLS = {"bash", "write", "edit"}
 KODAX_DIR = Path.home() / ".kodax"
+
+# 命令超时配置
+DEFAULT_TIMEOUT = 60    # 默认超时（秒）
+HARD_TIMEOUT = 300      # 硬上限（秒），无论用户设置多少，最多等这么久
 SKILLS_DIR = KODAX_DIR / "skills"
 SESSIONS_DIR = KODAX_DIR / "sessions"
 
@@ -682,10 +686,19 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
             case "undo":
                 return undo_last_edit()
             case "bash":
-                timeout = input_data.get("timeout", 30)
+                # 超时逻辑：硬上限优先
+                user_timeout = input_data.get("timeout")
+                if user_timeout is not None:
+                    timeout = min(HARD_TIMEOUT, user_timeout)
+                else:
+                    timeout = DEFAULT_TIMEOUT
+                was_capped = user_timeout and user_timeout > HARD_TIMEOUT
+
                 try:
                     # Windows 使用 OEM 编码（GBK），其他系统使用 UTF-8
                     encoding = 'oem' if sys.platform == 'win32' else 'utf-8'
+                    # 使用 ignore 避免产生无法打印的 \ufffd 字符
+                    errors_mode = 'ignore' if sys.platform == 'win32' else 'replace'
 
                     r = subprocess.run(
                         input_data["command"],
@@ -693,12 +706,24 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
                         capture_output=True,
                         text=True,
                         encoding=encoding,
-                        errors='replace',
+                        errors=errors_mode,
                         timeout=timeout
                     )
-                    return f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
-                except subprocess.TimeoutExpired:
-                    return f"Timeout after {timeout}s"
+                    result = f"Exit: {r.returncode}\n{r.stdout}{r.stderr}"
+                    if was_capped:
+                        result += f"\n\n[Note] Your timeout ({user_timeout}s) was capped at {HARD_TIMEOUT}s."
+                    return result
+                except subprocess.TimeoutExpired as e:
+                    output = (e.stdout or "") + (e.stderr or "")
+                    return f"""[Timeout] Command interrupted after {timeout}s
+
+Partial output:
+{output[:2000]}
+
+[Suggestion] The command took too long. Consider:
+- Is this a watch/dev server? Run in a separate terminal.
+- Can the task be broken into smaller steps?
+- Is there an error causing it to hang?"""
             case "glob":
                 base = Path(input_data.get("path", "."))
                 matches = [m for m in base.glob(input_data["pattern"]) if not any(p.startswith(".") or p == "node_modules" for p in m.parts)]
