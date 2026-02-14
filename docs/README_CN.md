@@ -245,6 +245,7 @@ Kodax 是一个简单的 Agent 循环：
 ## 文档
 
 - [设计文档](DESIGN.md) - 架构和实现细节
+- [长时间运行指南](LONG_RUNNING_GUIDE.md) - `--init` 最佳实践和提示词范例
 - [测试指南](TESTING.md) - 如何测试所有功能
 - [English README](../README.md) - 英文版
 

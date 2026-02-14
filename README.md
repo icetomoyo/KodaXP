@@ -246,6 +246,7 @@ The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to un
 ## Documentation
 
 - [Design Document](docs/DESIGN.md) - Architecture and implementation details
+- [Long-Running Guide](docs/LONG_RUNNING_GUIDE.md) - Best practices and prompt templates for `--init`
 - [Testing Guide](docs/TESTING.md) - How to test all features
 - [中文文档](docs/README_CN.md) - Chinese README
 
