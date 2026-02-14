@@ -556,6 +556,7 @@ uv run kodax_agent.py --session list
 | 确认机制 | `uv run kodax_agent.py "创建文件"` | ☐ |
 | 禁用确认 | `uv run kodax_agent.py --no-confirm "..."` | ☐ |
 | 流式输出 | 观察输出是否逐步显示 | ☐ |
+| 等待指示器 | 观察 `[Assistant]` 后是否出现 `.....` | ☐ |
 | Thinking Mode | `uv run kodax_agent.py --thinking "..."` | ☐ |
 | Session List | `uv run kodax_agent.py --session list` | ☐ |
 | Session Resume | `uv run kodax_agent.py --session resume "..."` | ☐ |

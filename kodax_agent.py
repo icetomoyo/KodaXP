@@ -54,6 +54,30 @@ last_api_call_time = [0.0]  # 使用列表以便在闭包中修改
 # 流式输出锁（确保一个 Agent 的完整响应不被打断）
 stream_lock = threading.Lock()
 
+
+# ============ 等待动画 ============
+class WaitingDots:
+    """等待时打印点动画，收到响应后停止"""
+
+    def __init__(self, interval: float = 1.0):
+        self._running = False
+        self._thread = None
+        self._interval = interval
+
+    def _animate(self):
+        while self._running:
+            print(".", end="", flush=True)
+            time.sleep(self._interval)
+
+    def start(self):
+        self._running = True
+        self._thread = threading.Thread(target=self._animate, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._running = False
+        print()  # 换行，让流式内容在新行开始
+
 # 文件备份（用于 Undo 功能）
 FILE_BACKUPS: dict[str, str] = {}
 
@@ -346,46 +370,61 @@ class AnthropicProvider(Provider):
         current_text = ""
         thinking_text = ""
         in_thinking = False
+        first_content = True
 
         kwargs = {"model": self.model, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
         if thinking:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
+        dots = WaitingDots()
+        dots.start()
 
-        with self.client.messages.stream(**kwargs) as stream:
-            for event in stream:
-                if event.type == "content_block_delta":
-                    if event.delta.type == "text_delta":
-                        if in_thinking and thinking_text:
-                            # 结束 thinking 块，打印累积的内容
-                            print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
-                            thinking_text = ""
-                            in_thinking = False
-                        print(event.delta.text, end="", flush=True)
-                        current_text += event.delta.text
-                    elif event.delta.type == "thinking_delta" and thinking:
-                        if not in_thinking:
-                            in_thinking = True
-                        thinking_text += event.delta.thinking
-                elif event.type == "content_block_start" and event.content_block.type == "tool_use":
-                    if current_text:
-                        text_blocks.append({"type": "text", "text": current_text})
-                        current_text = ""
-                    print()
+        try:
+            with self.client.messages.stream(**kwargs) as stream:
+                for event in stream:
+                    if event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            if first_content:
+                                dots.stop()
+                                first_content = False
+                            if in_thinking and thinking_text:
+                                # 结束 thinking 块，打印累积的内容
+                                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                                thinking_text = ""
+                                in_thinking = False
+                            print(event.delta.text, end="", flush=True)
+                            current_text += event.delta.text
+                        elif event.delta.type == "thinking_delta" and thinking:
+                            if first_content:
+                                dots.stop()
+                                first_content = False
+                            if not in_thinking:
+                                in_thinking = True
+                            thinking_text += event.delta.thinking
+                    elif event.type == "content_block_start" and event.content_block.type == "tool_use":
+                        if first_content:
+                            dots.stop()
+                            first_content = False
+                        if current_text:
+                            text_blocks.append({"type": "text", "text": current_text})
+                            current_text = ""
+                        print()
 
-            # 打印剩余的 thinking 内容
-            if thinking_text:
-                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                # 打印剩余的 thinking 内容
+                if thinking_text:
+                    print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
 
-            final = stream.get_final_message()
-            for block in final.content:
-                if block.type == "text" and block.text:
-                    if not text_blocks or text_blocks[-1].get("text") != block.text:
-                        text_blocks.append({"type": "text", "text": block.text})
-                elif block.type == "tool_use":
-                    # 转换为 dict 以统一处理
-                    tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
+                final = stream.get_final_message()
+                for block in final.content:
+                    if block.type == "text" and block.text:
+                        if not text_blocks or text_blocks[-1].get("text") != block.text:
+                            text_blocks.append({"type": "text", "text": block.text})
+                    elif block.type == "tool_use":
+                        # 转换为 dict 以统一处理
+                        tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
+        finally:
+            dots.stop()
 
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
@@ -411,23 +450,35 @@ class OpenAICompatProvider(Provider):
         full_messages = [{"role": "system", "content": system}] + messages
         text_content = ""
         tool_calls_map = {}
+        first_content = True
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
+        dots = WaitingDots()
+        dots.start()
 
-        response = self.client.chat.completions.create(model=self.MODEL, messages=full_messages, tools=tools, stream=True)
+        try:
+            response = self.client.chat.completions.create(model=self.MODEL, messages=full_messages, tools=tools, stream=True)
 
-        for chunk in response:
-            delta = chunk.choices[0].delta
-            if delta.content:
-                print(delta.content, end="", flush=True)
-                text_content += delta.content
-            if delta.tool_calls:
-                for tc in delta.tool_calls:
-                    if tc.index not in tool_calls_map:
-                        tool_calls_map[tc.index] = {"id": tc.id, "name": "", "arguments": ""}
-                    if tc.function:
-                        tool_calls_map[tc.index]["name"] = tc.function.name or tool_calls_map[tc.index]["name"]
-                        tool_calls_map[tc.index]["arguments"] += tc.function.arguments or ""
+            for chunk in response:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    if first_content:
+                        dots.stop()
+                        first_content = False
+                    print(delta.content, end="", flush=True)
+                    text_content += delta.content
+                if delta.tool_calls:
+                    if first_content:
+                        dots.stop()
+                        first_content = False
+                    for tc in delta.tool_calls:
+                        if tc.index not in tool_calls_map:
+                            tool_calls_map[tc.index] = {"id": tc.id, "name": "", "arguments": ""}
+                        if tc.function:
+                            tool_calls_map[tc.index]["name"] = tc.function.name or tool_calls_map[tc.index]["name"]
+                            tool_calls_map[tc.index]["arguments"] += tc.function.arguments or ""
+        finally:
+            dots.stop()
 
         print()
 
@@ -469,24 +520,36 @@ class ZhipuProvider(Provider):
         full_messages = [{"role": "system", "content": system}] + messages
         text_content = ""
         tool_calls_map = {}
+        first_content = True
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
+        dots = WaitingDots()
+        dots.start()
 
-        response = self.client.chat.completions.create(model=self.model, messages=full_messages, tools=tools, stream=True)
+        try:
+            response = self.client.chat.completions.create(model=self.model, messages=full_messages, tools=tools, stream=True)
 
-        for chunk in response:
-            delta = chunk.choices[0].delta
-            if delta.content:
-                print(delta.content, end="", flush=True)
-                text_content += delta.content
-            if delta.tool_calls:
-                for tc in delta.tool_calls:
-                    idx = tc.index if hasattr(tc, 'index') else 0
-                    if idx not in tool_calls_map:
-                        tool_calls_map[idx] = {"id": tc.id, "name": "", "arguments": ""}
-                    if tc.function:
-                        tool_calls_map[idx]["name"] = tc.function.name or tool_calls_map[idx]["name"]
-                        tool_calls_map[idx]["arguments"] += tc.function.arguments or ""
+            for chunk in response:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    if first_content:
+                        dots.stop()
+                        first_content = False
+                    print(delta.content, end="", flush=True)
+                    text_content += delta.content
+                if delta.tool_calls:
+                    if first_content:
+                        dots.stop()
+                        first_content = False
+                    for tc in delta.tool_calls:
+                        idx = tc.index if hasattr(tc, 'index') else 0
+                        if idx not in tool_calls_map:
+                            tool_calls_map[idx] = {"id": tc.id, "name": "", "arguments": ""}
+                        if tc.function:
+                            tool_calls_map[idx]["name"] = tc.function.name or tool_calls_map[idx]["name"]
+                            tool_calls_map[idx]["arguments"] += tc.function.arguments or ""
+        finally:
+            dots.stop()
 
         print()
 
@@ -513,44 +576,59 @@ class AnthropicCompatProvider(Provider):
         current_text = ""
         thinking_text = ""
         in_thinking = False
+        first_content = True
 
         kwargs = {"model": self.MODEL, "max_tokens": MAX_TOKENS, "system": system, "tools": tools, "messages": messages}
         if thinking:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
 
         print("\033[35m[Assistant]\033[0m ", end="", flush=True)
+        dots = WaitingDots()
+        dots.start()
 
-        with self.client.messages.stream(**kwargs) as stream:
-            for event in stream:
-                if event.type == "content_block_delta":
-                    if event.delta.type == "text_delta":
-                        if in_thinking and thinking_text:
-                            print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
-                            thinking_text = ""
-                            in_thinking = False
-                        print(event.delta.text, end="", flush=True)
-                        current_text += event.delta.text
-                    elif event.delta.type == "thinking_delta" and thinking:
-                        if not in_thinking:
-                            in_thinking = True
-                        thinking_text += event.delta.thinking
-                elif event.type == "content_block_start" and event.content_block.type == "tool_use":
-                    if current_text:
-                        text_blocks.append({"type": "text", "text": current_text})
-                        current_text = ""
-                    print()
+        try:
+            with self.client.messages.stream(**kwargs) as stream:
+                for event in stream:
+                    if event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            if first_content:
+                                dots.stop()
+                                first_content = False
+                            if in_thinking and thinking_text:
+                                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                                thinking_text = ""
+                                in_thinking = False
+                            print(event.delta.text, end="", flush=True)
+                            current_text += event.delta.text
+                        elif event.delta.type == "thinking_delta" and thinking:
+                            if first_content:
+                                dots.stop()
+                                first_content = False
+                            if not in_thinking:
+                                in_thinking = True
+                            thinking_text += event.delta.thinking
+                    elif event.type == "content_block_start" and event.content_block.type == "tool_use":
+                        if first_content:
+                            dots.stop()
+                            first_content = False
+                        if current_text:
+                            text_blocks.append({"type": "text", "text": current_text})
+                            current_text = ""
+                        print()
 
-            if thinking_text:
-                print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
+                if thinking_text:
+                    print(f"\n\033[90m[Thinking] {thinking_text[:500]}{'...' if len(thinking_text) > 500 else ''}\033[0m", flush=True)
 
-            final = stream.get_final_message()
-            for block in final.content:
-                if block.type == "text" and block.text:
-                    if not text_blocks or text_blocks[-1].get("text") != block.text:
-                        text_blocks.append({"type": "text", "text": block.text})
-                elif block.type == "tool_use":
-                    # 转换为 dict 以统一处理
-                    tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
+                final = stream.get_final_message()
+                for block in final.content:
+                    if block.type == "text" and block.text:
+                        if not text_blocks or text_blocks[-1].get("text") != block.text:
+                            text_blocks.append({"type": "text", "text": block.text})
+                    elif block.type == "tool_use":
+                        # 转换为 dict 以统一处理
+                        tool_blocks.append({"id": block.id, "name": block.name, "input": block.input})
+        finally:
+            dots.stop()
 
         if current_text and not text_blocks:
             text_blocks.append({"type": "text", "text": current_text})
