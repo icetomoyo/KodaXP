@@ -293,6 +293,16 @@ TOOLS = [
 
 SYSTEM_PROMPT = """You are a helpful coding assistant. You can read, write, and edit files, and execute shell commands.
 
+When a tool call returns an error:
+1. STOP and READ the error message carefully
+2. DO NOT repeat the same tool call with the same parameters
+3. Identify what's wrong (missing parameter? wrong type? wrong path?)
+4. Fix the issue BEFORE making another tool call
+5. Common errors:
+   - "Missing required parameter 'X'" → Add the missing parameter to your JSON
+   - "File not found" → Check the path with read or glob first
+   - "String not found" → Read the file again to see exact content
+
 When making edits:
 - Always read the file first to understand its current content
 - Make precise, targeted edits rather than rewriting entire files
@@ -745,8 +755,11 @@ Partial output:
                 return "\n".join(results[:50]) or "No matches"
             case _:
                 return f"Unknown tool: {name}"
+    except KeyError as e:
+        missing_param = str(e).strip("'")
+        return f"[Tool Error] {name}: Missing required parameter '{missing_param}'. Check tool schema and provide all required parameters."
     except Exception as e:
-        return f"Error: {e}"
+        return f"[Tool Error] {name}: {type(e).__name__}: {e}"
 
 
 # ============ P2: 并行执行 ============

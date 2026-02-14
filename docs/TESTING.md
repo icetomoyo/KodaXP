@@ -692,6 +692,62 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 | **Windows UTF-8 编码** | 中文输出测试 | ☐ |
 | **Git 顺序执行** | 并行模式下连续 git 命令 | ☐ |
 | **Thinking 多轮调用** | kimi-code/zhipu-coding thinking 多工具 | ☐ |
+| **错误信息增强** | 缺少参数时显示详细错误 | ☐ |
+| **错误恢复指导** | 模型不重复同样的错误 | ☐ |
+
+---
+
+## 错误处理增强测试 (P0)
+
+### 27. 错误信息增强测试
+
+测试改进后的错误信息是否清晰。
+
+```bash
+# 测试缺少 command 参数的错误信息
+# 在对话中引导 Agent 犯错（或不提供参数）
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+尝试调用 bash 工具但不提供 command 参数，看看错误信息是什么
+"
+
+# 预期错误信息：
+# [Tool Error] bash: Missing required parameter 'command'. Check tool schema and provide all required parameters.
+```
+
+```bash
+# 测试 edit 工具缺少 new_string 参数
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+尝试编辑 test.txt 文件，只提供 path 和 old_string，不提供 new_string
+"
+
+# 预期错误信息：
+# [Tool Error] edit: Missing required parameter 'new_string'. Check tool schema and provide all required parameters.
+```
+
+### 28. 错误恢复测试
+
+测试模型是否能在收到错误后正确修复，而不是重复同样的错误。
+
+```bash
+# 测试长时间任务中的错误恢复
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 "
+执行一个多步骤任务，故意在某一步可能犯错，观察是否能自我修复
+"
+
+# 预期：
+# 1. 模型收到错误后不重复同样的工具调用
+# 2. 模型能根据错误信息修复问题
+# 3. 任务能继续进行
+```
+
+### 29. 错误信息对比
+
+| 场景 | 旧错误信息 | 新错误信息 |
+|------|-----------|-----------|
+| bash 缺少 command | `Error: 'command'` | `[Tool Error] bash: Missing required parameter 'command'. Check tool schema and provide all required parameters.` |
+| edit 缺少 new_string | `Error: 'new_string'` | `[Tool Error] edit: Missing required parameter 'new_string'. Check tool schema and provide all required parameters.` |
+| read 文件不存在 | `Error: File not found: /path` | `[Tool Error] read: File not found: /path` |
+| edit 字符串未找到 | `Error: String not found` | `[Tool Error] edit: String not found` |
 
 ---
 

@@ -266,6 +266,18 @@ The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to un
 - [Testing Guide](docs/TESTING.md) - How to test all features
 - [中文文档](docs/README_CN.md) - Chinese README
 
+## Version History
+
+### v0.1.0 (2026-02-14)
+
+- **Error Handling Enhancement**: Improved error messages and recovery guidance
+  - Error messages now show tool name and missing parameter clearly
+  - Added explicit error handling guidance in system prompt
+  - Model is instructed not to repeat the same tool call errors
+- **Hard Timeout**: Bash commands capped at 300s max (configurable)
+- **Windows Compatibility**: OEM encoding for correct Chinese output
+- **Documentation**: Added LONG_RUNNING_GUIDE.md with best practices
+
 ## License
 
 MIT
