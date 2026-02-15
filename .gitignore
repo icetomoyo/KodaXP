@@ -19,7 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.kodax/
+.kodaxp/
 
 # Virtual environments
 .venv/
@@ -37,5 +37,5 @@ ENV/
 Thumbs.db
 
 # Project specific
-.kodax/
+.kodaxp/
 .claude/

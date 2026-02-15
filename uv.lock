@@ -220,8 +220,8 @@ wheels = [
 ]
 
 [[package]]
-name = "kodax-agent"
-version = "0.1.0"
+name = "kodaxp"
+version = "0.6.2"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },

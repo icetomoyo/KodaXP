@@ -807,7 +807,7 @@ uv run kodaxp.py --session list
 # 3. 切换到另一个 Git 项目
 cd /path/to/other-project
 
-# 4. 测试 --session list（应该不显示 KodaX 的 session）
+# 4. 测试 --session list（应该不显示 KodaXP 的 session）
 uv run kodaxp.py --session list
 # 预期：No sessions found. 或只显示当前项目的 sessions
 ```

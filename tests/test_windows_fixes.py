@@ -20,7 +20,7 @@ class TestBashEncoding:
 
     def test_utf8_output(self):
         """Test that bash tool handles UTF-8 output correctly."""
-        from kodax_agent import execute_tool
+        from kodaxp import execute_tool
 
         # Test with a command that produces UTF-8 output
         result = execute_tool("bash", {"command": "echo '测试中文'"}, set())
@@ -32,7 +32,7 @@ class TestBashEncoding:
 
     def test_mixed_encoding_output(self):
         """Test handling of mixed encoding content."""
-        from kodax_agent import execute_tool
+        from kodaxp import execute_tool
 
         # Test with emoji and special characters
         result = execute_tool("bash", {"command": "echo 'Hello 世界 🌍'"}, set())
@@ -47,7 +47,7 @@ class TestSmartParallelExecution:
 
     def test_bash_commands_identified_separately(self):
         """Test that bash commands are identified for sequential execution."""
-        from kodax_agent import execute_tools_parallel
+        from kodaxp import execute_tools_parallel
 
         # Create mock tool calls
         tool_calls = [
@@ -67,7 +67,7 @@ class TestSmartParallelExecution:
 
     def test_git_commands_no_race_condition(self):
         """Test that git commands don't cause race conditions."""
-        from kodax_agent import execute_tool
+        from kodaxp import execute_tool
 
         # Execute git status - should work without index.lock errors
         result = execute_tool("bash", {"command": "git status --short"}, set())
