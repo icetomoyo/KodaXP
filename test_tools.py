@@ -1,11 +1,11 @@
-"""测试 kodax_agent P1 + P2 功能"""
+"""测试 kodaxp P1 + P2 功能"""
 import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.path.insert(0, '.')
 
-from kodax_agent import execute_tool, estimate_tokens, compact_messages, Session, load_skills, PROVIDERS
-from kodax_agent import execute_tools_parallel, run_subagent
+from kodaxp import execute_tool, estimate_tokens, compact_messages, Session, load_skills, PROVIDERS
+from kodaxp import execute_tools_parallel, run_subagent
 from pathlib import Path
 import tempfile
 import os
@@ -91,13 +91,13 @@ def test_session():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # 修改 SESSIONS_DIR
-        import kodax_agent
-        original_dir = kodax_agent.SESSIONS_DIR
-        kodax_agent.SESSIONS_DIR = Path(tmpdir)
+        import kodaxp
+        original_dir = kodaxp.SESSIONS_DIR
+        kodaxp.SESSIONS_DIR = Path(tmpdir)
 
         try:
             # 测试带标题的会话
-            session = kodax_agent.Session(id="test_session", messages=[])
+            session = kodaxp.Session(id="test_session", messages=[])
             session.messages.append({"role": "user", "content": "Hello World, this is a test message"})
             session.save()
 
@@ -106,14 +106,14 @@ def test_session():
             print("  ✓ Session title auto-generation")
 
             # 重新加载
-            loaded = kodax_agent.Session.load("test_session")
+            loaded = kodaxp.Session.load("test_session")
             assert len(loaded.messages) == 1
             assert loaded.messages[0]["content"] == "Hello World, this is a test message"
             assert loaded.title == "Hello World, this is a test message"
             print("  ✓ Session save/load with title")
 
             # 测试 list_all 返回 dict
-            sessions = kodax_agent.Session.list_all()
+            sessions = kodaxp.Session.list_all()
             assert len(sessions) == 1
             assert sessions[0]["id"] == "test_session"
             assert sessions[0]["title"] == "Hello World, this is a test message"
@@ -121,7 +121,7 @@ def test_session():
             print("  ✓ Session list_all returns dict with id, title, msg_count")
 
             # 测试长标题截断
-            long_session = kodax_agent.Session(id="long_session", messages=[])
+            long_session = kodaxp.Session(id="long_session", messages=[])
             long_msg = "A" * 100  # 100 字符
             long_session.messages.append({"role": "user", "content": long_msg})
             long_session.save()
@@ -137,7 +137,7 @@ def test_session():
             print("  ✓ Session saves git_root in metadata")
 
         finally:
-            kodax_agent.SESSIONS_DIR = original_dir
+            kodaxp.SESSIONS_DIR = original_dir
 
 
 def test_providers():
@@ -204,7 +204,7 @@ def test_promise_signals():
     print("Testing promise signals (Ralph-Loop style)")
     print("=" * 50)
 
-    from kodax_agent import check_promise_signal
+    from kodaxp import check_promise_signal
 
     # 测试 COMPLETE 信号
     signal, reason = check_promise_signal("Great work! <promise>COMPLETE</promise>")

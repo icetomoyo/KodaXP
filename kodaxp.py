@@ -438,7 +438,7 @@ You are in a long-running task mode. At the start of EACH session, follow these 
 1. Run `pwd` to confirm your working directory
 2. Read git logs (`git log --oneline -10`) and PROGRESS.md to understand recent work
 3. Read feature_list.json and pick ONE incomplete feature (passes: false)
-4. **Write a session plan** to .kodaxpp/session_plan.md (see Session Planning section below)
+4. **Write a session plan** to .kodaxp/session_plan.md (see Session Planning section below)
 5. Execute the plan step by step, testing as you go
 6. End session with: git commit + update PROGRESS.md with plan summary
 
@@ -453,7 +453,7 @@ IMPORTANT Rules:
 Before writing ANY code in this session, you MUST create a plan file:
 
 1. **Create directory**: `mkdir -p .kodaxp` (if not exists)
-2. **Write plan** to `.kodaxpp/session_plan.md` with this structure:
+2. **Write plan** to `.kodaxp/session_plan.md` with this structure:
 
 ```markdown
 # Session Plan
