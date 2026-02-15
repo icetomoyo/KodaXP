@@ -1531,6 +1531,16 @@ def main():
             print("Run 'kodax_agent.py --init \"your project\"' first.")
             sys.exit(1)
 
+        # 处理 --session resume（只在第一个 session 使用）
+        first_session_id = None
+        if args.session == "resume":
+            sessions = Session.list_all()
+            first_session_id = sessions[0]["id"] if sessions else None
+            if first_session_id:
+                print(f"\033[36m[Kodax Auto-Continue]\033[0m Resuming from session: {first_session_id}")
+        elif args.session:
+            first_session_id = args.session
+
         start_time = time.time()
         session_count = 0
         max_sessions = args.max_sessions
@@ -1567,9 +1577,10 @@ def main():
             print(f"\033[36m[Kodax Auto-Continue]\033[0m Progress: {completed}/{total} features | Elapsed: {elapsed_hours:.1f}h/{max_hours}h")
             print("=" * 60)
 
-            # 运行一个 session
+            # 运行一个 session（第一个 session 使用 resume 的 session_id，后续创建新的）
             prompt = user_prompt if user_prompt else "Continue implementing features from feature_list.json"
-            success, last_text = run_single_session(args, prompt)
+            current_session_id = first_session_id if session_count == 1 else None
+            success, last_text = run_single_session(args, prompt, current_session_id)
 
             if not success:
                 print(f"\n\033[31m[Kodax Auto-Continue]\033[0m Session failed, stopping")
