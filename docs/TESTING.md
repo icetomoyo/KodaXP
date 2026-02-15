@@ -781,6 +781,9 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 | **Thinking 多轮调用** | kimi-code/zhipu-coding thinking 多工具 | ☐ |
 | **错误信息增强** | 缺少参数时显示详细错误 | ☐ |
 | **错误恢复指导** | 模型不重复同样的错误 | ☐ |
+| **截断检测** | 大文件写入时自动检测缺失参数 | ☐ |
+| **自动重试** | 检测截断后自动发送 follow-up 请求 | ☐ |
+| **分段写入引导** | 提示词引导 LLM 分段写入大文件 | ☐ |
 
 ---
 
@@ -835,6 +838,77 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 "
 | edit 缺少 new_string | `Error: 'new_string'` | `[Tool Error] edit: Missing required parameter 'new_string'. Check tool schema and provide all required parameters.` |
 | read 文件不存在 | `Error: File not found: /path` | `[Tool Error] read: File not found: /path` |
 | edit 字符串未找到 | `Error: String not found` | `[Tool Error] edit: String not found` |
+
+---
+
+## 截断检测与自动重试测试 (P0)
+
+### 30. 大文件写入截断检测
+
+测试当 LLM 响应被截断导致工具参数缺失时，系统是否能自动重试。
+
+```bash
+# 测试大文件写入（可能触发截断）
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+创建一个包含 500 行 HTML 代码的文件 large_test.html
+"
+
+# 预期行为：
+# 如果检测到工具参数缺失：
+# 1. 显示 "[Kodax] Detected incomplete tool call(s): write: missing 'content'"
+# 2. 显示 "[Kodax] Requesting completion (retry 1/2)..."
+# 3. 自动发送 follow-up 请求让 LLM 补全
+# 4. 最多重试 2 次
+```
+
+### 31. 截断重试成功场景
+
+```bash
+# 观察自动重试是否成功
+uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
+创建一个较复杂的 HTML 文件，包含头部、导航栏、主要内容区域和页脚
+"
+
+# 预期：
+# - 如果首次响应被截断，系统自动重试
+# - 重试后 LLM 可能采用分段写入策略（先写结构，再用 edit 添加内容）
+# - 最终文件创建成功
+```
+
+### 32. 截断重试耗尽场景
+
+```bash
+# 测试重试次数耗尽后的行为
+# （需要人为触发，正常情况下不会发生）
+# 当重试 2 次后仍然失败，系统会继续执行工具（返回错误信息）
+
+# 预期：
+# 显示 "[Kodax] Max retries reached for incomplete tool calls."
+# 然后继续执行工具，返回错误信息给 LLM
+```
+
+### 33. 分段写入最佳实践验证
+
+```bash
+# 验证提示词引导是否生效
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+创建一个大型配置文件 config.yaml，包含数据库配置、缓存配置、日志配置等多个部分
+"
+
+# 预期行为（如果提示词引导生效）：
+# 1. LLM 先写入基本结构/骨架
+# 2. 然后使用 edit 逐步添加各部分配置
+# 而不是一次性写入所有内容
+```
+
+### 34. 截断检测日志
+
+| 场景 | 预期日志 |
+|------|---------|
+| 检测到参数缺失 | `[Kodax] Detected incomplete tool call(s): write: missing 'content'` |
+| 开始重试 | `[Kodax] Requesting completion (retry 1/2)...` |
+| 重试成功 | 继续正常执行工具 |
+| 重试耗尽 | `[Kodax] Max retries reached for incomplete tool calls.` |
 
 ---
 

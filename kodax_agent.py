@@ -291,7 +291,53 @@ TOOLS = [
     {"name": "undo", "description": "Undo the last file modification. Restores the most recently backed up file.", "input_schema": {"type": "object", "properties": {}, "required": []}},
 ]
 
+# 工具必要参数映射（用于检测截断）
+TOOL_REQUIRED_PARAMS = {
+    "read": ["path"],
+    "write": ["path", "content"],
+    "edit": ["path", "old_string", "new_string"],
+    "bash": ["command"],
+    "glob": ["pattern"],
+    "grep": ["pattern", "path"],
+    "undo": [],
+}
+
+
+def check_incomplete_tool_calls(tool_blocks: list) -> list[str]:
+    """检测工具调用是否缺少必要参数
+
+    Returns:
+        缺失参数的描述列表，如 ["write: missing 'content'", "bash: missing 'command'"]
+    """
+    incomplete = []
+    for tc in tool_blocks:
+        name = tc.get("name", "")
+        input_data = tc.get("input", {}) or {}
+        required = TOOL_REQUIRED_PARAMS.get(name, [])
+
+        for param in required:
+            if param not in input_data or input_data[param] is None or input_data[param] == "":
+                incomplete.append(f"{name}: missing '{param}'")
+
+    return incomplete
+
 SYSTEM_PROMPT = """You are a helpful coding assistant. You can read, write, and edit files, and execute shell commands.
+
+## Large File Handling (IMPORTANT)
+
+When writing large files (over 300 lines or 10KB):
+- DO NOT use a single write call with huge content
+- Instead, write the file structure first, then use edit to add sections incrementally
+- Break large content into 2-3 smaller write operations if needed
+- This prevents response truncation issues
+
+Example approach for large files:
+1. write file with basic structure/skeleton
+2. edit to add first major section
+3. edit to add second major section
+4. etc.
+
+## Error Handling
 
 When a tool call returns an error:
 1. STOP and READ the error message carefully
@@ -303,16 +349,19 @@ When a tool call returns an error:
    - "File not found" → Check the path with read or glob first
    - "String not found" → Read the file again to see exact content
 
-When making edits:
+## Editing Files
+
 - Always read the file first to understand its current content
 - Make precise, targeted edits rather than rewriting entire files
 - Preserve the existing code style and formatting
 
-When executing commands:
+## Shell Commands
+
 - Be careful with destructive operations
 - Prefer read-only operations when possible
 
-For multi-step tasks:
+## Multi-step Tasks
+
 - Track your progress by listing what you've done and what's next
 - Break complex tasks into smaller steps
 - Summarize progress periodically
@@ -1364,6 +1413,8 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
 
     iteration, max_iter = 0, args.max_iter
     last_text = ""  # 用于 promise 信号检测
+    incomplete_retry_count = 0  # 截断重试计数
+    MAX_INCOMPLETE_RETRIES = 2  # 最多重试 2 次
 
     while iteration < max_iter:
         iteration += 1
@@ -1387,6 +1438,38 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
             if not tool_blocks:
                 print("\n\033[32m[Kodax]\033[0m Done!")
                 break
+
+            # ============ 方案1: 检测截断 + 自动重试 ============
+            incomplete = check_incomplete_tool_calls(tool_blocks)
+            if incomplete:
+                incomplete_retry_count += 1
+                if incomplete_retry_count <= MAX_INCOMPLETE_RETRIES:
+                    # 自动重试：发送 follow-up 请求让 LLM 补全参数
+                    print(f"\n\033[33m[Kodax]\033[0m Detected incomplete tool call(s): {', '.join(incomplete)}")
+                    print(f"\033[33m[Kodax]\033[0m Requesting completion (retry {incomplete_retry_count}/{MAX_INCOMPLETE_RETRIES})...")
+
+                    # 移除刚才添加的 assistant message（因为我们不会执行这些工具）
+                    session.messages.pop()
+
+                    # 发送 follow-up 请求
+                    retry_prompt = f"""Your previous response was truncated or incomplete. The following tool calls are missing required parameters:
+{chr(10).join('- ' + i for i in incomplete)}
+
+Please provide the complete tool calls with ALL required parameters. For large file writes, consider:
+1. Writing the file structure first, then using edit to add sections
+2. Breaking into multiple smaller writes
+
+Retry with complete parameters."""
+
+                    session.messages.append({"role": "user", "content": retry_prompt})
+                    continue  # 跳过工具执行，继续下一次 LLM 调用
+                else:
+                    # 重试次数耗尽，回退到错误处理
+                    print(f"\n\033[31m[Kodax]\033[0m Max retries reached for incomplete tool calls. Proceeding with error messages.")
+                    incomplete_retry_count = 0  # 重置计数器
+            else:
+                # 工具调用完整，重置计数器
+                incomplete_retry_count = 0
 
             # 执行工具
             tool_results = []
