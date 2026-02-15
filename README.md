@@ -56,8 +56,8 @@ Kodax is designed for developers who want to **understand**, **customize**, and 
 
 ```bash
 # Install
-git clone https://github.com/icetomoyo/KodaX.git
-cd KodaX
+git clone https://github.com/icetomoyo/KodaXP.git
+cd KodaXP
 uv sync
 
 # Set your API key
@@ -185,7 +185,7 @@ uv run kodax_agent.py "your task"  # Uses kimi-code
 **Option 2: Shell Alias**
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
+alias kodax='uv run /path/to/KodaXP/kodax_agent.py --provider kimi-code'
 ```
 
 **Priority**: `--provider` CLI arg > `KODAX_PROVIDER` env > default (zhipu-coding)

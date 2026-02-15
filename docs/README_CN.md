@@ -56,8 +56,8 @@ Kodax 专为想要**理解**、**定制**和**掌控** AI 编程助手的开发�
 
 ```bash
 # 安装
-git clone https://github.com/icetomoyo/KodaX.git
-cd KodaX
+git clone https://github.com/icetomoyo/KodaXP.git
+cd KodaXP
 uv sync
 
 # 设置 API Key
@@ -183,7 +183,7 @@ uv run kodax_agent.py "你的任务"  # 使用 kimi-code
 **方式二：Shell Alias**
 ```bash
 # 添加到 ~/.bashrc 或 ~/.zshrc
-alias kodax='uv run /path/to/KodaX/kodax_agent.py --provider kimi-code'
+alias kodax='uv run /path/to/KodaXP/kodax_agent.py --provider kimi-code'
 ```
 
 **优先级**：`--provider` 命令行参数 > `KODAX_PROVIDER` 环境变量 > 默认值 (zhipu-coding)

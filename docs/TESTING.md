@@ -794,8 +794,8 @@ uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "tes
 ### 18. Session 项目关联
 
 ```bash
-# 1. 在 KodaX 项目创建 session
-cd /path/to/KodaX
+# 1. 在 KodaXP 项目创建 session
+cd /path/to/KodaXP
 uv run kodax_agent.py --provider zhipu-coding "记住项目名是 KodaX"
 
 # 2. 查看创建的 session（应该显示）
@@ -813,13 +813,13 @@ uv run kodax_agent.py --session list
 ```
 
 ```bash
-# 5. 直接指定 KodaX session（应该警告项目不匹配）
+# 5. 直接指定 KodaXP session（应该警告项目不匹配）
 uv run kodax_agent.py --provider zhipu-coding --session <kodax_session_id> "test"
 
 # 预期输出：
 # [Warning] Session project mismatch:
 #   Current:  /path/to/other-project
-#   Session:  /path/to/KodaX
+#   Session:  /path/to/KodaXP
 #   Continuing anyway...
 ```
 
@@ -827,9 +827,9 @@ uv run kodax_agent.py --provider zhipu-coding --session <kodax_session_id> "test
 
 ```bash
 # 在项目子目录中测试（应该能正确匹配）
-cd /path/to/KodaX/src
+cd /path/to/KodaXP/src
 uv run kodax_agent.py --session list
-# 预期：显示 KodaX 项目的 sessions（因为 git_root 相同）
+# 预期：显示 KodaXP 项目的 sessions（因为 git_root 相同）
 ```
 
 ---
@@ -947,7 +947,7 @@ uv run kodax_agent.py --provider zhipu-coding --thinking --no-confirm "
 ```bash
 # 测试 Windows 路径处理
 uv run kodax_agent.py --provider zhipu-coding --no-confirm "
-读取 C:/Works/Projects/KodaX/README.md 的前 10 行
+读取 C:/Works/Projects/KodaXP/README.md 的前 10 行
 "
 
 # 预期：正确读取文件，路径处理正常

@@ -808,7 +808,7 @@ def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
 
 **使用效果**:
 ```
-Project: KodaX
+Project: KodaXP
   README.md
   pyproject.toml
   kodax_agent.py
@@ -1153,7 +1153,7 @@ uv run kodax_agent.py --auto-continue --max-iter 30
 
 ### 9.9 Promise 信号系统 (Ralph-Loop 风格)
 
-借鉴 Anthropic 官方插件 **Ralph Loop (Ralph Wiggum)** 的设计，KodaX 实现了 Promise 信号系统，让 Agent 能够主动与 auto-continue 循环通信。
+借鉴 Anthropic 官方插件 **Ralph Loop (Ralph Wiggum)** 的设计，KodaXP 实现了 Promise 信号系统，让 Agent 能够主动与 auto-continue 循环通信。
 
 #### 背景
 
@@ -1206,7 +1206,7 @@ When you need to communicate status to the orchestrator, use these special signa
 
 #### 与 Ralph Loop 对比
 
-| 特性 | Ralph Loop | KodaX |
+| 特性 | Ralph Loop | KodaXP |
 |------|------------|-------|
 | **信号系统** | ✅ Promise tags | ✅ Promise tags |
 | **Stop Hook** | ✅ 拦截退出 | ❌ 使用 --auto-continue |
@@ -1215,7 +1215,7 @@ When you need to communicate status to the orchestrator, use these special signa
 | **Progress File** | ✅ txt | ✅ Markdown |
 | **时间限制** | ❌ | ✅ `--max-hours` |
 
-KodaX 结合了 Ralph Loop 的信号系统和 Anthropic Engineering Blog 推荐的状态管理，形成更完整的解决方案。
+KodaXP 结合了 Ralph Loop 的信号系统和 Anthropic Engineering Blog 推荐的状态管理，形成更完整的解决方案。
 
 ---
 
