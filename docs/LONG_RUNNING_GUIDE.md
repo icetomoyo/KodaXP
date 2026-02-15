@@ -19,7 +19,7 @@
 
 | 模式 | 上下文来源 | 适用场景 |
 |------|-----------|----------|
-| **会话模式** | Session 文件 (`~/.kodax/sessions/`) | 短期任务、快速修复 |
+| **会话模式** | Session 文件 (`~/.kodaxp/sessions/`) | 短期任务、快速修复 |
 | **长运行模式** | 项目状态文件 (`feature_list.json`, `PROGRESS.md`, git log) | 完整项目、多日开发 |
 
 ### 长运行模式工作流
@@ -132,7 +132,7 @@ Feature 应该：
 ### 模板 1：CLI 工具
 
 ```bash
-uv run kodax_agent.py --init "Python CLI 工具：<工具名称>
+uv run kodaxp.py --init "Python CLI 工具：<工具名称>
 
 功能：
 - 命令行入口支持多个子命令
@@ -154,7 +154,7 @@ uv run kodax_agent.py --init "Python CLI 工具：<工具名称>
 ### 模板 2：REST API
 
 ```bash
-uv run kodax_agent.py --init "FastAPI REST API：<API 名称>
+uv run kodaxp.py --init "FastAPI REST API：<API 名称>
 
 核心资源：
 - User: 注册、登录、资料管理
@@ -182,7 +182,7 @@ uv run kodax_agent.py --init "FastAPI REST API：<API 名称>
 ### 模板 3：Web 前端
 
 ```bash
-uv run kodax_agent.py --init "React 前端应用：<应用名称>
+uv run kodaxp.py --init "React 前端应用：<应用名称>
 
 页面结构：
 - 登录/注册页
@@ -211,7 +211,7 @@ uv run kodax_agent.py --init "React 前端应用：<应用名称>
 ### 模板 4：数据处理脚本
 
 ```bash
-uv run kodax_agent.py --init "Python 数据处理脚本：<脚本名称>
+uv run kodaxp.py --init "Python 数据处理脚本：<脚本名称>
 
 输入：
 - 读取 CSV/JSON 文件
@@ -240,7 +240,7 @@ uv run kodax_agent.py --init "Python 数据处理脚本：<脚本名称>
 ### 模板 5：测试代理
 
 ```bash
-uv run kodax_agent.py --init "Python 测试代理：<代理名称>
+uv run kodaxp.py --init "Python 测试代理：<代理名称>
 
 功能：
 - 自动发现测试文件
@@ -266,7 +266,7 @@ uv run kodax_agent.py --init "Python 测试代理：<代理名称>
 ### 范例 1：Todo CLI
 
 ```bash
-uv run kodax_agent.py --init "Python Todo CLI 工具
+uv run kodaxp.py --init "Python Todo CLI 工具
 
 功能：
 1. 添加任务：todo add \"任务内容\" --priority high
@@ -299,7 +299,7 @@ uv run kodax_agent.py --init "Python Todo CLI 工具
 ### 范例 2：博客 API（完整版）
 
 ```bash
-uv run kodax_agent.py --init "FastAPI 博客 API
+uv run kodaxp.py --init "FastAPI 博客 API
 
 核心功能：
 1. 用户认证
@@ -349,7 +349,7 @@ uv run kodax_agent.py --init "FastAPI 博客 API
 ### 范例 3：代码分析器
 
 ```bash
-uv run kodax_agent.py --init "Python 代码分析工具
+uv run kodaxp.py --init "Python 代码分析工具
 
 功能：
 1. 代码统计
@@ -464,7 +464,7 @@ uv run kodax_agent.py --init "Python 代码分析工具
 
 ```bash
 # 限制最多 10 个 session
-uv run kodax_agent.py --auto-continue --max-sessions 10
+uv run kodaxp.py --auto-continue --max-sessions 10
 ```
 
 ---
@@ -475,22 +475,22 @@ uv run kodax_agent.py --auto-continue --max-sessions 10
 
 ```bash
 # 标准继续
-uv run kodax_agent.py "继续开发"
+uv run kodaxp.py "继续开发"
 
 # 聚焦特定功能
-uv run kodax_agent.py "继续开发，优先完成用户认证功能"
+uv run kodaxp.py "继续开发，优先完成用户认证功能"
 
 # 修复问题
-uv run kodax_agent.py "检查测试失败的原因并修复"
+uv run kodaxp.py "检查测试失败的原因并修复"
 
 # 添加新功能
-uv run kodax_agent.py "在现有功能基础上，添加搜索功能"
+uv run kodaxp.py "在现有功能基础上，添加搜索功能"
 
 # 代码审查
-uv run kodax_agent.py "审查代码质量，找出可以改进的地方"
+uv run kodaxp.py "审查代码质量，找出可以改进的地方"
 
 # 第二天继续
-uv run kodax_agent.py --session resume "继续昨天的工作"
+uv run kodaxp.py --session resume "继续昨天的工作"
 ```
 
 ---

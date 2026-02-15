@@ -42,7 +42,7 @@ KodaXP is designed for developers who want to **understand**, **customize**, and
 
 ## Features
 
-- **One File** - Everything in `kodax_agent.py`. Read it, modify it, ship it.
+- **One File** - Everything in `kodaxp.py`. Read it, modify it, ship it.
 - **7 Providers** - Anthropic, OpenAI, Kimi, Kimi Code, Zhipu, Zhipu Coding, Qwen
 - **Streaming** - Real-time output, no waiting
 - **Session Memory** - Conversations persist across runs
@@ -66,29 +66,29 @@ uv sync
 export ANTHROPIC_API_KEY=your-key    # or KIMI_API_KEY, ZHIPU_API_KEY, etc.
 
 # Run
-uv run kodax_agent.py "create a REST API with FastAPI"
+uv run kodaxp.py "create a REST API with FastAPI"
 ```
 
 ## Usage
 
 ```bash
 # Basic
-uv run kodax_agent.py "your coding task"
+uv run kodaxp.py "your coding task"
 
 # Use a different provider
-uv run kodax_agent.py --provider kimi-code "your task"
+uv run kodaxp.py --provider kimi-code "your task"
 
 # Enable thinking mode for complex tasks
-uv run kodax_agent.py --provider zhipu-coding --thinking "refactor this codebase"
+uv run kodaxp.py --provider zhipu-coding --thinking "refactor this codebase"
 
 # Resume previous conversation
-uv run kodax_agent.py --session resume "continue working on the API"
+uv run kodaxp.py --session resume "continue working on the API"
 
 # Parallel execution (faster for multi-file tasks)
-uv run kodax_agent.py --parallel "read all markdown files and summarize"
+uv run kodaxp.py --parallel "read all markdown files and summarize"
 
 # Run multiple tasks in parallel
-uv run kodax_agent.py --team "analyze code structure,check test coverage,find bugs"
+uv run kodaxp.py --team "analyze code structure,check test coverage,find bugs"
 ```
 
 ## Supported Providers
@@ -105,11 +105,11 @@ uv run kodax_agent.py --team "analyze code structure,check test coverage,find bu
 
 ## Skills
 
-Create custom skills in `~/.kodax/skills/`:
+Create custom skills in `~/.kodaxp/skills/`:
 
 **Python skill** (flexible, can execute tools):
 ```python
-# ~/.kodax/skills/commit.py
+# ~/.kodaxp/skills/commit.py
 
 def skill_commit(agent, args: str) -> str:
     """Generate commit message from git diff"""  # <- This becomes the description
@@ -121,7 +121,7 @@ def skill_commit(agent, args: str) -> str:
 
 **Markdown skill** (simple, pure prompts):
 ```markdown
-# ~/.kodax/skills/review.md
+# ~/.kodaxp/skills/review.md
 
 # Code Review
 
@@ -133,9 +133,9 @@ Review the code for:
 ```
 
 ```bash
-uv run kodax_agent.py              # List all skills with descriptions
-uv run kodax_agent.py /commit      # Execute skill
-uv run kodax_agent.py /review src/main.py
+uv run kodaxp.py              # List all skills with descriptions
+uv run kodaxp.py /commit      # Execute skill
+uv run kodaxp.py /review src/main.py
 ```
 
 ## CLI Options
@@ -162,7 +162,7 @@ uv run kodax_agent.py /review src/main.py
 
 **Option 1: Direct Execution (Recommended for Development)**
 ```bash
-uv run kodax_agent.py "your task"
+uv run kodaxp.py "your task"
 ```
 - Code changes take effect immediately
 - Best for development and debugging
@@ -170,24 +170,24 @@ uv run kodax_agent.py "your task"
 **Option 2: Install as Global Tool**
 ```bash
 uv tool install -e .
-kodax "your task"
+kodaxp "your task"
 ```
 - Shorter command, available from any directory
 - `-e` flag means editable mode (code changes still work)
-- Uninstall with `uv tool uninstall kodax`
+- Uninstall with `uv tool uninstall kodaxp`
 
 ### Setting Default Provider
 
 **Option 1: Environment Variable**
 ```bash
 export KODAX_PROVIDER=kimi-code
-uv run kodax_agent.py "your task"  # Uses kimi-code
+uv run kodaxp.py "your task"  # Uses kimi-code
 ```
 
 **Option 2: Shell Alias**
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-alias kodax='uv run /path/to/KodaXP/kodax_agent.py --provider kimi-code'
+alias kodaxp='uv run /path/to/KodaXP/kodaxp.py --provider kimi-code'
 ```
 
 **Priority**: `--provider` CLI arg > `KODAX_PROVIDER` env > default (zhipu-coding)
@@ -216,17 +216,17 @@ For complex projects that span multiple sessions, use `--init` to set up a long-
 
 ```bash
 # Initialize
-uv run kodax_agent.py --init "build a claude.ai clone"
+uv run kodaxp.py --init "build a claude.ai clone"
 
 # This creates:
 # - feature_list.json (all features with passes: false)
 # - PROGRESS.md (progress log)
 
 # Continue work (auto-detects long-running mode)
-uv run kodax_agent.py "continue development"
+uv run kodaxp.py "continue development"
 
 # Resume next day
-uv run kodax_agent.py --session resume "continue yesterday's work"
+uv run kodaxp.py --session resume "continue yesterday's work"
 ```
 
 ### Auto-Continue Mode
@@ -235,13 +235,13 @@ For fully autonomous development until all features are complete:
 
 ```bash
 # Initialize first
-uv run kodax_agent.py --init "build a REST API with authentication"
+uv run kodaxp.py --init "build a REST API with authentication"
 
 # Auto-continue until all features pass (with safety limits)
-uv run kodax_agent.py --auto-continue
+uv run kodaxp.py --auto-continue
 
 # With custom limits
-uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+uv run kodaxp.py --auto-continue --max-sessions 20 --max-hours 4.0
 ```
 
 Auto-continue stops automatically when:
@@ -259,11 +259,11 @@ After completing a project, you can add new features without losing history:
 # Now add new features:
 
 # Option 1: Append new features (recommended)
-uv run kodax_agent.py --init "add search functionality" --append
-uv run kodax_agent.py --auto-continue
+uv run kodaxp.py --init "add search functionality" --append
+uv run kodaxp.py --auto-continue
 
 # Option 2: Start fresh (lose history)
-uv run kodax_agent.py --init "new project" --overwrite
+uv run kodaxp.py --init "new project" --overwrite
 ```
 
 **Use `--append` for:**
@@ -288,7 +288,7 @@ KodaXP is a simple agent loop:
 3. Execute tools, send results back
 4. Repeat until done
 
-The entire code is in a single file (~2000 LOC). Read [kodax_agent.py](kodax_agent.py) to understand exactly how it works.
+The entire code is in a single file (~2000 LOC). Read [kodaxp.py](kodaxp.py) to understand exactly how it works.
 
 Core components:
 - **Provider abstraction**: 7 LLM providers with unified interface

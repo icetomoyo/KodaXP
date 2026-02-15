@@ -40,7 +40,7 @@ Provider 层:   ~600 LOC
 
 ```
 ┌─────────────────────────────────────────┐
-│           kodax_agent.py (~2000 LOC)    │
+│           kodaxp.py (~2000 LOC)    │
 │                                          │
 │  ┌─────────┐ ┌─────────┐ ┌────────────┐ │
 │  │ Config  │ │  Tools  │ │ Agent Loop │ │
@@ -142,13 +142,13 @@ def execute_tool(name: str, input_data: dict, confirm_tools: set) -> str:
 **CLI 选项**:
 ```bash
 # 默认模式
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 
 # 自定义确认列表
-uv run kodax_agent.py --confirm bash,write "你的任务"
+uv run kodaxp.py --confirm bash,write "你的任务"
 
 # 禁用所有确认
-uv run kodax_agent.py --no-confirm "你的任务"
+uv run kodaxp.py --no-confirm "你的任务"
 ```
 
 ### 3.4 流式输出
@@ -381,18 +381,18 @@ class ZhipuProvider(Provider):
 
 ```bash
 # 使用默认 Provider (zhipu-coding)
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 
 # 方式 1: 环境变量设置默认 Provider
 export KODAX_PROVIDER=kimi-code
 export KIMI_API_KEY=your-key
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 
 # 方式 2: 命令行参数覆盖
-uv run kodax_agent.py --provider anthropic "你的任务"
+uv run kodaxp.py --provider anthropic "你的任务"
 
 # 启用 Thinking Mode (仅 Anthropic, Kimi Code, 智谱 Coding 支持)
-uv run kodax_agent.py --provider zhipu-coding --thinking "复杂任务"
+uv run kodaxp.py --provider zhipu-coding --thinking "复杂任务"
 ```
 
 ### 4.8 依赖配置
@@ -421,7 +421,7 @@ dependencies = [
 ### 5.2 目录结构
 
 ```
-~/.kodax/
+~/.kodaxpp/
 ├── config.toml           # 全局配置
 ├── skills/
 │   ├── commit.py         # /commit skill (Python)
@@ -437,7 +437,7 @@ dependencies = [
 **方式一：Python 函数**（灵活，可执行工具）
 
 ```python
-# ~/.kodax/skills/commit.py
+# ~/.kodaxpp/skills/commit.py
 
 def skill_commit(agent, args: str) -> str:
     """根据 git diff 生成 commit 消息
@@ -457,7 +457,7 @@ def skill_commit(agent, args: str) -> str:
 **方式二：Markdown 文件**（简单，纯提示词）
 
 ```markdown
-# ~/.kodax/skills/commit.md
+# ~/.kodaxpp/skills/commit.md
 
 # Generate commit message
 
@@ -494,11 +494,11 @@ def skill_xxx(agent, args: str) -> str:
 
 ```bash
 # 查看可用 skills
-uv run kodax_agent.py
+uv run kodaxp.py
 
 # 执行 skill
-uv run kodax_agent.py /commit
-uv run kodax_agent.py /explain kodax_agent.py
+uv run kodaxp.py /commit
+uv run kodaxp.py /explain kodaxp.py
 ```
 
 ---
@@ -593,7 +593,7 @@ def stream_llm(messages: list) -> tuple[list, list]:
 ### 7.1 设计要点
 
 - **存储格式**: JSONL（第一行为元数据，后续为消息）
-- **存储位置**: `~/.kodax/sessions/{session_id}.jsonl`
+- **存储位置**: `~/.kodaxpp/sessions/{session_id}.jsonl`
 - **自动保存**: 每次消息后覆盖保存
 - **自动标题**: 从第一条用户消息提取前 50 字符作为标题
 
@@ -614,7 +614,7 @@ from pathlib import Path
 import json
 import time
 
-SESSIONS_DIR = Path.home() / ".kodax" / "sessions"
+SESSIONS_DIR = Path.home() / ".kodaxp" / "sessions"
 
 @dataclass
 class Session:
@@ -706,16 +706,16 @@ class Session:
 
 ```bash
 # 新会话（默认）
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 
 # 恢复最近会话
-uv run kodax_agent.py --session resume "继续任务"
+uv run kodaxp.py --session resume "继续任务"
 
 # 恢复指定会话
-uv run kodax_agent.py --session 20260213_141051 "继续任务"
+uv run kodaxp.py --session 20260213_141051 "继续任务"
 
 # 列出所有会话（显示标题和消息数）
-uv run kodax_agent.py --session list
+uv run kodaxp.py --session list
 
 # 输出示例：
 # Sessions:
@@ -765,7 +765,7 @@ System Prompt:
 ...
 Git Branch: main
 Git Status:
-   M kodax_agent.py
+   M kodaxp.py
   ?? test_new_feature.py
 ```
 
@@ -811,7 +811,7 @@ def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
 Project: KodaXP
   README.md
   pyproject.toml
-  kodax_agent.py
+  kodaxp.py
   docs/
     DESIGN.md
     TESTING.md
@@ -887,7 +887,7 @@ def undo_last_edit() -> str:
 **使用示例**:
 ```bash
 # Agent 执行 write/edit 后可以撤销
-uv run kodax_agent.py "修改 kodax_agent.py 添加新功能，然后撤销"
+uv run kodaxp.py "修改 kodaxp.py 添加新功能，然后撤销"
 ```
 
 **限制**:
@@ -1004,13 +1004,13 @@ IMPORTANT:
 
 ```bash
 # 1. 初始化长运行项目
-uv run kodax_agent.py --init "构建 claude.ai 克隆"
+uv run kodaxp.py --init "构建 claude.ai 克隆"
 
 # 2. 后续运行（自动检测长运行模式）
-uv run kodax_agent.py "继续开发"
+uv run kodaxp.py "继续开发"
 
 # 3. 第二天继续
-uv run kodax_agent.py --session resume "继续昨天的工作"
+uv run kodaxp.py --session resume "继续昨天的工作"
 ```
 
 ### 9.6 自动继续模式 (Auto-Continue)
@@ -1020,13 +1020,13 @@ uv run kodax_agent.py --session resume "继续昨天的工作"
 **使用方式**:
 ```bash
 # 1. 初始化（必须先执行 --init）
-uv run kodax_agent.py --init "构建带认证的 REST API"
+uv run kodaxp.py --init "构建带认证的 REST API"
 
 # 2. 自动继续直到完成
-uv run kodax_agent.py --auto-continue
+uv run kodaxp.py --auto-continue
 
 # 3. 自定义安全限制
-uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+uv run kodaxp.py --auto-continue --max-sessions 20 --max-hours 4.0
 ```
 
 **安全阀设计**（自动停止，无需人工介入）:
@@ -1071,16 +1071,16 @@ if args.auto_continue:
         # 检查安全阀
         completed, total = get_feature_progress()
         if check_all_features_complete():
-            print(f"\n[Kodax] All features completed! ({completed}/{total})")
+            print(f"\n[KodaXP] All features completed! ({completed}/{total})")
             break
 
         if session_count >= args.max_sessions:
-            print(f"\n[Kodax] Max sessions reached ({args.max_sessions})")
+            print(f"\n[KodaXP] Max sessions reached ({args.max_sessions})")
             break
 
         elapsed_hours = (time.time() - start_time) / 3600
         if elapsed_hours >= args.max_hours:
-            print(f"\n[Kodax] Max hours reached ({args.max_hours}h)")
+            print(f"\n[KodaXP] Max hours reached ({args.max_hours}h)")
             break
 
         # 运行一个 session
@@ -1091,7 +1091,7 @@ if args.auto_continue:
         else:
             consecutive_errors += 1
             if consecutive_errors >= 3:
-                print(f"\n[Kodax] Too many consecutive errors, stopping")
+                print(f"\n[KodaXP] Too many consecutive errors, stopping")
                 break
 
         session_count += 1
@@ -1107,7 +1107,7 @@ if args.auto_continue:
 `--auto-continue` 必须在 `--init` 之后使用，否则会报错：
 ```
 [Error] --auto-continue requires a long-running project.
-       Run 'kodax_agent.py --init "your task"' first.
+       Run 'kodaxp.py --init "your task"' first.
 ```
 
 ### 9.7 单次会话迭代限制 (--max-iter)
@@ -1123,13 +1123,13 @@ if args.auto_continue:
 
 ```bash
 # 默认 50 次迭代
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 
 # 限制为 20 次迭代
-uv run kodax_agent.py --max-iter 20 "你的任务"
+uv run kodaxp.py --max-iter 20 "你的任务"
 
 # 配合 auto-continue 使用
-uv run kodax_agent.py --auto-continue --max-iter 30
+uv run kodaxp.py --auto-continue --max-iter 30
 ```
 
 **三个正交维度**:
@@ -1183,13 +1183,13 @@ success, last_text = run_single_session(args, prompt)
 
 signal, reason = check_promise_signal(last_text)
 if signal == "COMPLETE":
-    print("[Kodax Auto-Continue] Agent signaled COMPLETE")
+    print("[KodaXP Auto-Continue] Agent signaled COMPLETE")
     break
 elif signal == "BLOCKED":
-    print(f"[Kodax Auto-Continue] Agent BLOCKED: {reason}")
+    print(f"[KodaXP Auto-Continue] Agent BLOCKED: {reason}")
     break
 elif signal == "DECIDE":
-    print(f"[Kodax Auto-Continue] Agent needs decision: {reason}")
+    print(f"[KodaXP Auto-Continue] Agent needs decision: {reason}")
     break
 ```
 
@@ -1273,13 +1273,13 @@ async def run_parallel_agents_async(tasks: list, provider_name: str, thinking: b
 
 ```bash
 # 并行工具执行模式
-uv run kodax_agent.py --parallel "读取 src/ 目录下的所有配置文件"
+uv run kodaxp.py --parallel "读取 src/ 目录下的所有配置文件"
 
 # Agent Team - 多个任务并行执行
-uv run kodax_agent.py --team "分析 src/ 目录结构,检查测试覆盖率,查找 TODO 注释"
+uv run kodaxp.py --team "分析 src/ 目录结构,检查测试覆盖率,查找 TODO 注释"
 
 # 使用 Thinking Mode
-uv run kodax_agent.py --provider kimi-code --thinking --team "代码审查,性能分析"
+uv run kodaxp.py --provider kimi-code --thinking --team "代码审查,性能分析"
 ```
 
 ### 8.4 流式输出优化 ✅
@@ -1527,17 +1527,17 @@ export KIMI_API_KEY=your-key
 
 ```bash
 # 基本使用
-uv run kodax_agent.py "创建一个简单的 HTTP 服务器"
+uv run kodaxp.py "创建一个简单的 HTTP 服务器"
 
 # 禁用确认
-uv run kodax_agent.py --no-confirm "删除临时文件"
+uv run kodaxp.py --no-confirm "删除临时文件"
 
 # 使用 Skill
-uv run kodax_agent.py /commit
-uv run kodax_agent.py /explain kodax_agent.py
+uv run kodaxp.py /commit
+uv run kodaxp.py /explain kodaxp.py
 
 # 恢复会话
-uv run kodax_agent.py --session resume "继续修改"
+uv run kodaxp.py --session resume "继续修改"
 ```
 
 ---
@@ -1548,13 +1548,13 @@ uv run kodax_agent.py --session resume "继续修改"
 KodaXP/
 ├── pyproject.toml          # 项目配置
 ├── README.md               # 使用说明（英文）
-├── kodax_agent.py          # 核心实现 (~2000 LOC)
+├── kodaxp.py          # 核心实现 (~2000 LOC)
 ├── docs/
 │   ├── README_CN.md        # 使用说明（中文）
 │   ├── DESIGN.md           # 设计文档（本文件）
 │   ├── LONG_RUNNING_GUIDE.md  # 长运行模式指南
 │   └── TESTING.md          # 测试指南
-└── ~/.kodax/               # 用户配置目录
+└── ~/.kodaxpp/               # 用户配置目录
     ├── skills/             # Skill 目录
     └── sessions/           # 会话存储
 ```

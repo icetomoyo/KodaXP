@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kodaxp = "kodax_agent:main"
+kodaxp = "kodaxp:main"
 
 [build-system]
 requires = ["hatchling"]

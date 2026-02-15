@@ -5,11 +5,11 @@ KodaXP - 极致轻量化 Coding Agent
 使用 uv 进行环境管理
 
 使用方式:
-    uv run kodax_agent.py "你的编程任务"
-    uv run kodax_agent.py --provider kimi-code "你的任务"
-    uv run kodax_agent.py --thinking "复杂任务"
-    uv run kodax_agent.py /commit
-    uv run kodax_agent.py --init "长时间任务"
+    uv run kodaxp.py "你的编程任务"
+    uv run kodaxp.py --provider kimi-code "你的任务"
+    uv run kodaxp.py --thinking "复杂任务"
+    uv run kodaxp.py /commit
+    uv run kodaxp.py --init "长时间任务"
 
 环境变量:
     ANTHROPIC_API_KEY - Anthropic API 密钥
@@ -40,13 +40,13 @@ from concurrent.futures import ThreadPoolExecutor
 # ============ 配置 ============
 MAX_TOKENS = 4096
 DEFAULT_CONFIRM_TOOLS = {"bash", "write", "edit"}
-KODAX_DIR = Path.home() / ".kodax"
+KODAXP_DIR = Path.home() / ".kodaxp"
 
 # 命令超时配置
 DEFAULT_TIMEOUT = 60    # 默认超时（秒）
 HARD_TIMEOUT = 300      # 硬上限（秒），无论用户设置多少，最多等这么久
-SKILLS_DIR = KODAX_DIR / "skills"
-SESSIONS_DIR = KODAX_DIR / "sessions"
+SKILLS_DIR = KODAXP_DIR / "skills"
+SESSIONS_DIR = KODAXP_DIR / "sessions"
 
 # 并行 Agent 配置
 STAGGER_DELAY = 1.0  # Agent 启动间隔（秒）
@@ -90,8 +90,8 @@ FILE_BACKUPS: dict[str, str] = {}
 # 长时间运行状态文件
 FEATURES_FILE = "feature_list.json"
 PROGRESS_FILE = "PROGRESS.md"
-SESSION_PLAN_DIR = ".kodax"
-SESSION_PLAN_FILE = ".kodax/session_plan.md"
+SESSION_PLAN_DIR = ".kodaxp"
+SESSION_PLAN_FILE = ".kodaxp/session_plan.md"
 
 # Session 计划模板
 SESSION_PLAN_TEMPLATE = """# Session Plan
@@ -438,7 +438,7 @@ You are in a long-running task mode. At the start of EACH session, follow these 
 1. Run `pwd` to confirm your working directory
 2. Read git logs (`git log --oneline -10`) and PROGRESS.md to understand recent work
 3. Read feature_list.json and pick ONE incomplete feature (passes: false)
-4. **Write a session plan** to .kodax/session_plan.md (see Session Planning section below)
+4. **Write a session plan** to .kodaxpp/session_plan.md (see Session Planning section below)
 5. Execute the plan step by step, testing as you go
 6. End session with: git commit + update PROGRESS.md with plan summary
 
@@ -452,8 +452,8 @@ IMPORTANT Rules:
 
 Before writing ANY code in this session, you MUST create a plan file:
 
-1. **Create directory**: `mkdir -p .kodax` (if not exists)
-2. **Write plan** to `.kodax/session_plan.md` with this structure:
+1. **Create directory**: `mkdir -p .kodaxp` (if not exists)
+2. **Write plan** to `.kodaxpp/session_plan.md` with this structure:
 
 ```markdown
 # Session Plan
@@ -1193,8 +1193,8 @@ def run_team(tasks: list, provider_name: str, thinking: bool = False) -> list:
     Returns:
         每个任务的结果列表 [{"result": str}, ...]
     """
-    print(f"\n\033[36m[Kodax Team]\033[0m Starting {len(tasks)} parallel agents...")
-    print(f"\033[36m[Kodax Team]\033[0m Running tasks (streaming output is serialized for clarity)...")
+    print(f"\n\033[36m[KodaXP Team]\033[0m Starting {len(tasks)} parallel agents...")
+    print(f"\033[36m[KodaXP Team]\033[0m Running tasks (streaming output is serialized for clarity)...")
     results = asyncio.run(run_parallel_agents_async(tasks, provider_name, thinking))
     return results
 
@@ -1249,7 +1249,7 @@ def compact_messages(messages: list, max_tokens: int = 100000) -> list:
 class Session:
     """会话管理类
 
-    支持会话持久化，以 JSONL 格式存储在 ~/.kodax/sessions/ 目录。
+    支持会话持久化，以 JSONL 格式存储在 ~/.kodaxp/sessions/ 目录。
     格式：第一行为元数据，后续为消息列表。
     """
     id: str
@@ -1426,10 +1426,10 @@ def load_skills() -> dict:
 
 # ============ 参数解析 ============
 def parse_args():
-    parser = argparse.ArgumentParser(description="Kodax Agent - 极致轻量化 Coding Agent")
+    parser = argparse.ArgumentParser(description="KodaXP - 极致轻量化 Coding Agent")
     parser.add_argument("prompt", nargs="*", help="Your coding task")
     parser.add_argument("--provider", choices=list(PROVIDERS.keys()),
-                        default=os.environ.get("KODAX_PROVIDER", "zhipu-coding"), help="LLM provider")
+                        default=os.environ.get("KODAXP_PROVIDER", "zhipu-coding"), help="LLM provider")
     parser.add_argument("--thinking", action="store_true", help="Enable thinking mode (Anthropic only)")
     parser.add_argument("--confirm", metavar="TOOLS", help="Tools requiring confirmation")
     parser.add_argument("--no-confirm", action="store_true", help="Disable all confirmations")
@@ -1531,10 +1531,10 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
     # 添加用户消息
     session.messages.append({"role": "user", "content": user_prompt})
 
-    print(f"\033[36m[Kodax]\033[0m Provider: {args.provider} | Session: {session.id}")
-    if is_long_running: print(f"\033[36m[Kodax]\033[0m Long-running mode enabled")
-    if args.parallel: print(f"\033[36m[Kodax]\033[0m Parallel mode enabled")
-    if confirm_tools: print(f"\033[36m[Kodax]\033[0m Confirm: {', '.join(sorted(confirm_tools))}")
+    print(f"\033[36m[KodaXP]\033[0m Provider: {args.provider} | Session: {session.id}")
+    if is_long_running: print(f"\033[36m[KodaXP]\033[0m Long-running mode enabled")
+    if args.parallel: print(f"\033[36m[KodaXP]\033[0m Parallel mode enabled")
+    if confirm_tools: print(f"\033[36m[KodaXP]\033[0m Confirm: {', '.join(sorted(confirm_tools))}")
     print()
 
     iteration, max_iter = 0, args.max_iter
@@ -1562,7 +1562,7 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
             session.messages.append({"role": "assistant", "content": assistant_content})
 
             if not tool_blocks:
-                print("\n\033[32m[Kodax]\033[0m Done!")
+                print("\n\033[32m[KodaXP]\033[0m Done!")
                 break
 
             # ============ 方案1: 检测截断 + 自动重试 ============
@@ -1571,8 +1571,8 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
                 incomplete_retry_count += 1
                 if incomplete_retry_count <= MAX_INCOMPLETE_RETRIES:
                     # 自动重试：发送 follow-up 请求让 LLM 补全参数
-                    print(f"\n\033[33m[Kodax]\033[0m Detected incomplete tool call(s): {', '.join(incomplete)}")
-                    print(f"\033[33m[Kodax]\033[0m Requesting completion (retry {incomplete_retry_count}/{MAX_INCOMPLETE_RETRIES})...")
+                    print(f"\n\033[33m[KodaXP]\033[0m Detected incomplete tool call(s): {', '.join(incomplete)}")
+                    print(f"\033[33m[KodaXP]\033[0m Requesting completion (retry {incomplete_retry_count}/{MAX_INCOMPLETE_RETRIES})...")
 
                     # 移除刚才添加的 assistant message（因为我们不会执行这些工具）
                     session.messages.pop()
@@ -1606,7 +1606,7 @@ PROVIDE SHORT, COMPLETE PARAMETERS NOW."""
                     continue  # 跳过工具执行，继续下一次 LLM 调用
                 else:
                     # 重试次数耗尽，回退到错误处理
-                    print(f"\n\033[31m[Kodax]\033[0m Max retries reached for incomplete tool calls. Proceeding with error messages.")
+                    print(f"\n\033[31m[KodaXP]\033[0m Max retries reached for incomplete tool calls. Proceeding with error messages.")
                     incomplete_retry_count = 0  # 重置计数器
             else:
                 # 工具调用完整，重置计数器
@@ -1617,7 +1617,7 @@ PROVIDE SHORT, COMPLETE PARAMETERS NOW."""
 
             if args.parallel and len(tool_blocks) > 1:
                 # P2: 并行执行工具
-                print(f"\n\033[36m[Kodax Parallel]\033[0m Executing {len(tool_blocks)} tools in parallel...")
+                print(f"\n\033[36m[KodaXP Parallel]\033[0m Executing {len(tool_blocks)} tools in parallel...")
                 for tc in tool_blocks:
                     print(f"\033[33m[Tool]\033[0m {tc['name']}({str(tc['input'])[:60]}...)")
                 results = execute_tools_parallel(tool_blocks, confirm_tools)
@@ -1636,7 +1636,7 @@ PROVIDE SHORT, COMPLETE PARAMETERS NOW."""
             session.save()
 
         except KeyboardInterrupt:
-            print("\n\033[33m[Kodax]\033[0m Interrupted")
+            print("\n\033[33m[KodaXP]\033[0m Interrupted")
             break
         except Exception as e:
             print(f"\n\033[31m[Error]\033[0m {e}")
@@ -1644,7 +1644,7 @@ PROVIDE SHORT, COMPLETE PARAMETERS NOW."""
 
     session.save()
     if iteration >= max_iter:
-        print("\n\033[33m[Kodax]\033[0m Max iterations reached")
+        print("\n\033[33m[KodaXP]\033[0m Max iterations reached")
 
     return True, last_text
 
@@ -1669,7 +1669,7 @@ def main():
     if args.auto_continue:
         if not Path(FEATURES_FILE).exists():
             print("\033[31m[Error]\033[0m --auto-continue requires a long-running project.")
-            print("Run 'kodax_agent.py --init \"your project\"' first.")
+            print("Run 'kodaxp.py --init \"your project\"' first.")
             sys.exit(1)
 
         # 处理 --session resume（只在第一个 session 使用）
@@ -1678,7 +1678,7 @@ def main():
             sessions = Session.list_all()
             first_session_id = sessions[0]["id"] if sessions else None
             if first_session_id:
-                print(f"\033[36m[Kodax Auto-Continue]\033[0m Resuming from session: {first_session_id}")
+                print(f"\033[36m[KodaXP Auto-Continue]\033[0m Resuming from session: {first_session_id}")
         elif args.session:
             first_session_id = args.session
 
@@ -1687,18 +1687,18 @@ def main():
         max_sessions = args.max_sessions
         max_hours = args.max_hours
 
-        print(f"\033[36m[Kodax Auto-Continue]\033[0m Starting automatic session loop")
-        print(f"\033[36m[Kodax Auto-Continue]\033[0m Max sessions: {max_sessions}, Max hours: {max_hours}")
+        print(f"\033[36m[KodaXP Auto-Continue]\033[0m Starting automatic session loop")
+        print(f"\033[36m[KodaXP Auto-Continue]\033[0m Max sessions: {max_sessions}, Max hours: {max_hours}")
 
         completed, total = get_feature_progress()
-        print(f"\033[36m[Kodax Auto-Continue]\033[0m Current progress: {completed}/{total} features complete")
+        print(f"\033[36m[KodaXP Auto-Continue]\033[0m Current progress: {completed}/{total} features complete")
         print()
 
         while session_count < max_sessions:
             # 检查是否所有 feature 通过
             if check_all_features_complete():
                 print("\n" + "=" * 60)
-                print(f"\033[32m[Kodax Auto-Continue]\033[0m All features complete!")
+                print(f"\033[32m[KodaXP Auto-Continue]\033[0m All features complete!")
                 print("=" * 60)
                 break
 
@@ -1706,7 +1706,7 @@ def main():
             elapsed_hours = (time.time() - start_time) / 3600
             if elapsed_hours >= max_hours:
                 print("\n" + "=" * 60)
-                print(f"\033[33m[Kodax Auto-Continue]\033[0m Max time reached ({max_hours}h)")
+                print(f"\033[33m[KodaXP Auto-Continue]\033[0m Max time reached ({max_hours}h)")
                 print("=" * 60)
                 break
 
@@ -1714,8 +1714,8 @@ def main():
             completed, total = get_feature_progress()
 
             print("\n" + "=" * 60)
-            print(f"\033[36m[Kodax Auto-Continue]\033[0m Session {session_count}/{max_sessions}")
-            print(f"\033[36m[Kodax Auto-Continue]\033[0m Progress: {completed}/{total} features | Elapsed: {elapsed_hours:.1f}h/{max_hours}h")
+            print(f"\033[36m[KodaXP Auto-Continue]\033[0m Session {session_count}/{max_sessions}")
+            print(f"\033[36m[KodaXP Auto-Continue]\033[0m Progress: {completed}/{total} features | Elapsed: {elapsed_hours:.1f}h/{max_hours}h")
             print("=" * 60)
 
             # 运行一个 session（第一个 session 使用 resume 的 session_id，后续创建新的）
@@ -1724,32 +1724,32 @@ def main():
             success, last_text = run_single_session(args, prompt, current_session_id)
 
             if not success:
-                print(f"\n\033[31m[Kodax Auto-Continue]\033[0m Session failed, stopping")
+                print(f"\n\033[31m[KodaXP Auto-Continue]\033[0m Session failed, stopping")
                 break
 
             # 检查 Promise 信号（Ralph-Loop 风格）
             signal, reason = check_promise_signal(last_text)
             if signal == "COMPLETE":
                 print("\n" + "=" * 60)
-                print(f"\033[32m[Kodax Auto-Continue]\033[0m Agent signaled COMPLETE")
+                print(f"\033[32m[KodaXP Auto-Continue]\033[0m Agent signaled COMPLETE")
                 print("=" * 60)
                 break
             elif signal == "BLOCKED":
                 print("\n" + "=" * 60)
-                print(f"\033[33m[Kodax Auto-Continue]\033[0m Agent BLOCKED: {reason}")
+                print(f"\033[33m[KodaXP Auto-Continue]\033[0m Agent BLOCKED: {reason}")
                 print("Waiting for human intervention...")
                 print("=" * 60)
                 break
             elif signal == "DECIDE":
                 print("\n" + "=" * 60)
-                print(f"\033[36m[Kodax Auto-Continue]\033[0m Agent needs decision: {reason}")
+                print(f"\033[36m[KodaXP Auto-Continue]\033[0m Agent needs decision: {reason}")
                 print("=" * 60)
                 break
 
         # 显示最终状态
         completed, total = get_feature_progress()
         print("\n" + "=" * 60)
-        print(f"\033[36m[Kodax Auto-Continue]\033[0m Final Status:")
+        print(f"\033[36m[KodaXP Auto-Continue]\033[0m Final Status:")
         print(f"  Sessions completed: {session_count}")
         print(f"  Features complete: {completed}/{total}")
         print(f"  Total time: {(time.time() - start_time) / 60:.1f} minutes")
@@ -1778,8 +1778,8 @@ def main():
 
             if args.append:
                 # 增量模式：追加新 features
-                print(f"\033[36m[Kodax]\033[0m Appending to existing project ({total} features, {completed} complete)")
-                print(f"\033[36m[Kodax]\033[0m Adding new features for: {args.init}")
+                print(f"\033[36m[KodaXP]\033[0m Appending to existing project ({total} features, {completed} complete)")
+                print(f"\033[36m[KodaXP]\033[0m Adding new features for: {args.init}")
 
                 user_prompt = f"""Add new features to an existing project: {args.init}
 
@@ -1818,7 +1818,7 @@ After updating files, commit:
             elif args.overwrite:
                 # 覆盖模式：清空历史
                 print(f"\033[33m[Warning]\033[0m Overwriting existing feature_list.json ({total} features will be lost)")
-                print(f"\033[36m[Kodax]\033[0m Initializing fresh project: {args.init}")
+                print(f"\033[36m[KodaXP]\033[0m Initializing fresh project: {args.init}")
 
                 user_prompt = f"""Initialize a long-running project: {args.init}
 
@@ -1896,11 +1896,11 @@ After creating files, make an initial git commit:
                 print("  --overwrite   Start fresh (existing features will be lost)")
                 print()
                 print("Example:")
-                print(f"  uv run kodax_agent.py --init \"{args.init}\" --append")
+                print(f"  uv run kodaxp.py --init \"{args.init}\" --append")
                 sys.exit(1)
         else:
             # 没有现有文件，正常初始化
-            print(f"\033[36m[Kodax]\033[0m Initializing long-running task: {args.init}")
+            print(f"\033[36m[KodaXP]\033[0m Initializing long-running task: {args.init}")
 
             user_prompt = f"""Initialize a long-running project: {args.init}
 
@@ -1971,9 +1971,9 @@ After creating files, make an initial git commit:
 
     # --team 和 --parallel 不需要位置参数
     if not user_prompt and not args.team and not args.parallel and not args.init:
-        print("Kodax Agent - 极致轻量化 Coding Agent\n")
-        print("Usage: uv run kodax_agent.py \"your task\"")
-        print("       uv run kodax_agent.py /skill_name")
+        print("KodaXP - 极致轻量化 Coding Agent\n")
+        print("Usage: uv run kodaxp.py \"your task\"")
+        print("       uv run kodaxp.py /skill_name")
         print("\nOptions:")
         print("  --provider NAME    LLM provider (anthropic, kimi, kimi-code, qwen, zhipu, openai)")
         print("  --thinking         Enable thinking mode (Anthropic, Kimi Code, Zhipu Coding)")
@@ -1999,7 +1999,7 @@ After creating files, make an initial git commit:
                 else:
                     print(f"  /{name}")
         else:
-            print("  (no skills installed in ~/.kodax/skills/)")
+            print("  (no skills installed in ~/.kodaxp/skills/)")
         sys.exit(0)
 
     # 会话管理
@@ -2017,15 +2017,15 @@ After creating files, make an initial git commit:
             print("Error: No tasks specified for --team")
             sys.exit(1)
 
-        print(f"\033[36m[Kodax Team]\033[0m Running {len(tasks)} tasks with {args.provider}")
+        print(f"\033[36m[KodaXP Team]\033[0m Running {len(tasks)} tasks with {args.provider}")
         if args.thinking:
-            print(f"\033[36m[Kodax Team]\033[0m Thinking mode enabled")
+            print(f"\033[36m[KodaXP Team]\033[0m Thinking mode enabled")
 
         results = run_team(tasks, args.provider, args.thinking)
 
         # 显示结果摘要（输出已是实时的）
         print("\n" + "=" * 60)
-        print(f"\033[32m[Kodax Team]\033[0m Results Summary:")
+        print(f"\033[32m[KodaXP Team]\033[0m Results Summary:")
         print("=" * 60)
         for i, (task, result_dict) in enumerate(zip(tasks, results), 1):
             result = result_dict.get("result", "")
@@ -2036,7 +2036,7 @@ After creating files, make an initial git commit:
                 print(f"\033[32m[Result]\033[0m ...{result_preview}")
 
         print("\n" + "=" * 60)
-        print(f"\033[32m[Kodax Team]\033[0m All {len(tasks)} tasks completed!")
+        print(f"\033[32m[KodaXP Team]\033[0m All {len(tasks)} tasks completed!")
         sys.exit(0)
 
     # 运行单个 session

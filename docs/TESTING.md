@@ -1,6 +1,6 @@
-# Kodax Agent 手动测试指南
+# KodaXP 手动测试指南
 
-本文档提供 Kodax Agent 所有功能的手动测试步骤。
+本文档提供 KodaXP 所有功能的手动测试步骤。
 
 ---
 
@@ -24,7 +24,7 @@ export ANTHROPIC_API_KEY=your-key     # Anthropic Claude
 
 ```bash
 # 测试基本对话和工具调用
-uv run kodax_agent.py --provider zhipu-coding "列出当前目录下的文件"
+uv run kodaxp.py --provider zhipu-coding "列出当前目录下的文件"
 
 # 预期：Agent 调用 glob 工具，列出文件，流式输出结果
 ```
@@ -35,7 +35,7 @@ uv run kodax_agent.py --provider zhipu-coding "列出当前目录下的文件"
 
 ```bash
 # 简单只读任务应该直接执行
-uv run kodax_agent.py --provider zhipu-coding "读取 README.md 的前 10 行"
+uv run kodaxp.py --provider zhipu-coding "读取 README.md 的前 10 行"
 
 # 预期：Agent 直接执行，不需要先解释计划
 ```
@@ -46,7 +46,7 @@ uv run kodax_agent.py --provider zhipu-coding "读取 README.md 的前 10 行"
 
 ```bash
 # 复杂任务应该先解释计划
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 创建一个 Python 脚本 calculate.py，包含加、减、乘、除四个函数，
 每个函数都有类型注解和 docstring
 "
@@ -62,7 +62,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试需要确认的操作（默认 bash, write, edit 需确认）
-uv run kodax_agent.py --provider zhipu-coding "创建一个测试文件 test_hello.txt，内容是 Hello World"
+uv run kodaxp.py --provider zhipu-coding "创建一个测试文件 test_hello.txt，内容是 Hello World"
 
 # 预期：
 # 1. Agent 请求执行 write 工具
@@ -72,14 +72,14 @@ uv run kodax_agent.py --provider zhipu-coding "创建一个测试文件 test_hel
 
 ```bash
 # 测试禁用确认
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "删除 test_hello.txt 文件"
+uv run kodaxp.py --provider zhipu-coding --no-confirm "删除 test_hello.txt 文件"
 
 # 预期：直接执行，无需确认
 ```
 
 ```bash
 # 测试自定义确认列表
-uv run kodax_agent.py --provider zhipu-coding --confirm bash "查看当前时间"
+uv run kodaxp.py --provider zhipu-coding --confirm bash "查看当前时间"
 
 # 预期：只有 bash 需要确认
 ```
@@ -88,7 +88,7 @@ uv run kodax_agent.py --provider zhipu-coding --confirm bash "查看当前时间
 
 ```bash
 # 测试流式输出效果
-uv run kodax_agent.py --provider zhipu-coding "写一首关于编程的短诗"
+uv run kodaxp.py --provider zhipu-coding "写一首关于编程的短诗"
 
 # 预期：文字逐字符/逐词显示，而非一次性输出
 ```
@@ -101,10 +101,10 @@ uv run kodax_agent.py --provider zhipu-coding "写一首关于编程的短诗"
 
 ```bash
 # 测试不同 Provider
-uv run kodax_agent.py --provider zhipu-coding "你好"           # 智谱 Coding (GLM-5)
-uv run kodax_agent.py --provider kimi-code "你好"              # Kimi Code (K2.5)
-uv run kodax_agent.py --provider zhipu "你好"                  # 智谱 SDK (GLM-4-plus)
-uv run kodax_agent.py --provider kimi "你好"                   # Kimi Moonshot
+uv run kodaxp.py --provider zhipu-coding "你好"           # 智谱 Coding (GLM-5)
+uv run kodaxp.py --provider kimi-code "你好"              # Kimi Code (K2.5)
+uv run kodaxp.py --provider zhipu "你好"                  # 智谱 SDK (GLM-4-plus)
+uv run kodaxp.py --provider kimi "你好"                   # Kimi Moonshot
 
 # 预期：不同 Provider 都能正常响应
 ```
@@ -113,7 +113,7 @@ uv run kodax_agent.py --provider kimi "你好"                   # Kimi Moonshot
 
 ```bash
 # 测试 Thinking Mode (仅 anthropic, kimi-code, zhipu-coding 支持)
-uv run kodax_agent.py --provider zhipu-coding --thinking "计算 123 * 456 并解释步骤"
+uv run kodaxp.py --provider zhipu-coding --thinking "计算 123 * 456 并解释步骤"
 
 # 预期：
 # 1. 显示灰色的 [Thinking] 块，包含思考过程
@@ -124,10 +124,10 @@ uv run kodax_agent.py --provider zhipu-coding --thinking "计算 123 * 456 并�
 
 ```bash
 # 创建新会话
-uv run kodax_agent.py --provider zhipu-coding "记住我的名字是 Alice"
+uv run kodaxp.py --provider zhipu-coding "记住我的名字是 Alice"
 
 # 列出会话
-uv run kodax_agent.py --session list
+uv run kodaxp.py --session list
 
 # 预期输出：
 # Sessions:
@@ -136,26 +136,26 @@ uv run kodax_agent.py --session list
 
 ```bash
 # 恢复最近会话
-uv run kodax_agent.py --provider zhipu-coding --session resume "我的名字是什么？"
+uv run kodaxp.py --provider zhipu-coding --session resume "我的名字是什么？"
 
 # 预期：Agent 能回答 "Alice"
 ```
 
 ```bash
 # 恢复指定会话
-uv run kodax_agent.py --provider zhipu-coding --session 20260213_143000 "继续聊天"
+uv run kodaxp.py --provider zhipu-coding --session 20260213_143000 "继续聊天"
 ```
 
 ### 7. Skill 系统
 
 **创建测试 Skill（Linux/macOS）**:
 ```bash
-mkdir -p ~/.kodax/skills
-cat > ~/.kodax/skills/hello.py << 'EOF'
+mkdir -p ~/.kodaxpp/skills
+cat > ~/.kodaxpp/skills/hello.py << 'EOF'
 def skill_hello(agent, args: str) -> str:
     """打招呼"""
     name = args.strip() or "朋友"
-    return f"你好，{name}！我是 Kodax Agent。"
+    return f"你好，{name}！我是 KodaXP。"
 EOF
 ```
 
@@ -164,12 +164,12 @@ EOF
 # 使用 Python 创建 skill 文件
 uv run python -c "
 from pathlib import Path
-skills_dir = Path.home() / '.kodax' / 'skills'
+skills_dir = Path.home() / '.kodaxp' / 'skills'
 skills_dir.mkdir(parents=True, exist_ok=True)
 skill_content = '''def skill_hello(agent, args: str) -> str:
     \"\"\"打招呼\"\"\"
     name = args.strip() or \"朋友\"
-    return f\"你好，{name}！我是 Kodax Agent。\"
+    return f\"你好，{name}！我是 KodaXP。\"
 '''
 (skills_dir / 'hello.py').write_text(skill_content, encoding='utf-8')
 print('Skill created!')
@@ -179,21 +179,21 @@ print('Skill created!')
 **测试 Skill**:
 ```bash
 # Linux/macOS
-uv run kodax_agent.py /hello
-uv run kodax_agent.py /hello World
+uv run kodaxp.py /hello
+uv run kodaxp.py /hello World
 
 # Windows Git Bash（注意：使用双斜杠避免路径转换）
-uv run kodax_agent.py //hello
-uv run kodax_agent.py //hello World
+uv run kodaxp.py //hello
+uv run kodaxp.py //hello World
 
 # Windows PowerShell/CMD
-uv run kodax_agent.py /hello
+uv run kodaxp.py /hello
 ```
 
 **预期输出**:
 ```
-你好，朋友！我是 Kodax Agent。
-你好，World！我是 Kodax Agent。
+你好，朋友！我是 KodaXP。
+你好，World！我是 KodaXP。
 ```
 
 > **注意**: 在 Windows Git Bash 中，`/hello` 会被解释为 Unix 路径并转换为 `C:/Program Files/Git/hello`。
@@ -204,7 +204,7 @@ uv run kodax_agent.py /hello
 ```bash
 # 测试上下文压缩（需要较多消息触发）
 # 创建一个长对话
-uv run kodax_agent.py --provider zhipu-coding --session compress_test "
+uv run kodaxp.py --provider zhipu-coding --session compress_test "
 请执行以下步骤：
 1. 创建文件 step1.txt 内容是 'Step 1 done'
 2. 创建文件 step2.txt 内容是 'Step 2 done'
@@ -225,7 +225,7 @@ uv run kodax_agent.py --provider zhipu-coding --session compress_test "
 
 ```bash
 # 在 Git 仓库中测试
-uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支和状态"
+uv run kodaxp.py --provider zhipu-coding "告诉我当前的 Git 分支和状态"
 
 # 预期：Agent 能够直接回答当前分支，因为上下文已注入
 ```
@@ -233,7 +233,7 @@ uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支和�
 ```bash
 # 在非 Git 目录测试
 cd /tmp
-uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支"
+uv run kodaxp.py --provider zhipu-coding "告诉我当前的 Git 分支"
 
 # 预期：Agent 不会因为缺少 Git 信息而报错
 ```
@@ -242,14 +242,14 @@ uv run kodax_agent.py --provider zhipu-coding "告诉我当前的 Git 分支"
 
 ```bash
 # 新会话时自动获取项目结构
-uv run kodax_agent.py --provider zhipu-coding "描述这个项目的结构"
+uv run kodaxp.py --provider zhipu-coding "描述这个项目的结构"
 
 # 预期：Agent 能够基于注入的快照快速了解项目布局
 ```
 
 ```bash
 # 恢复会话不会重复获取快照
-uv run kodax_agent.py --provider zhipu-coding --session resume "继续"
+uv run kodaxp.py --provider zhipu-coding --session resume "继续"
 
 # 预期：不会重复注入项目结构信息
 ```
@@ -258,7 +258,7 @@ uv run kodax_agent.py --provider zhipu-coding --session resume "继续"
 
 ```bash
 # 测试多步骤任务追踪
-uv run kodax_agent.py --provider zhipu-coding "
+uv run kodaxp.py --provider zhipu-coding "
 请帮我完成以下任务：
 1. 创建 test_todo.txt 文件
 2. 写入 'Hello Todo'
@@ -273,7 +273,7 @@ uv run kodax_agent.py --provider zhipu-coding "
 
 ```bash
 # 测试 Undo 功能
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 1. 创建 test_undo.txt，内容是 'Original Content'
 2. 修改 test_undo.txt 为 'Modified Content'
 3. 使用 undo 工具撤销修改
@@ -288,7 +288,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试 Undo 无备份情况
-uv run kodax_agent.py --provider zhipu-coding "使用 undo 工具"
+uv run kodaxp.py --provider zhipu-coding "使用 undo 工具"
 
 # 预期：返回 "No backups available. Nothing to undo."
 ```
@@ -301,7 +301,7 @@ uv run kodax_agent.py --provider zhipu-coding "使用 undo 工具"
 
 ```bash
 # 测试长运行任务初始化
-uv run kodax_agent.py --provider zhipu-coding --init "构建一个简单的 TODO 应用"
+uv run kodaxp.py --provider zhipu-coding --init "构建一个简单的 TODO 应用"
 
 # 预期：
 # 1. Agent 创建 feature_list.json（包含所有功能，每个 passes: false）
@@ -323,7 +323,7 @@ ls feature_list.json PROGRESS.md init.sh
 
 ```bash
 # 测试简单任务（单文件 HTML）
-uv run kodax_agent.py --provider zhipu-coding --init "创建一个游戏行业介绍的交互式HTML页面"
+uv run kodaxp.py --provider zhipu-coding --init "创建一个游戏行业介绍的交互式HTML页面"
 
 # 预期：feature_list.json 有 1-3 个 features
 # 例如：
@@ -342,7 +342,7 @@ cat feature_list.json
 
 ```bash
 # 测试中等任务（多页网站）
-uv run kodax_agent.py --provider zhipu-coding --init "创建一个包含首页、关于页、联系页的多页网站"
+uv run kodaxp.py --provider zhipu-coding --init "创建一个包含首页、关于页、联系页的多页网站"
 
 # 预期：feature_list.json 有 3-8 个 features
 # 例如：
@@ -356,7 +356,7 @@ uv run kodax_agent.py --provider zhipu-coding --init "创建一个包含首页�
 
 ```bash
 # 测试复杂任务（完整应用）
-uv run kodax_agent.py --provider zhipu-coding --init "创建一个完整的待办事项应用，包含前端、后端API和数据库"
+uv run kodaxp.py --provider zhipu-coding --init "创建一个完整的待办事项应用，包含前端、后端API和数据库"
 
 # 预期：feature_list.json 有 8-15 个 features
 # 例如：
@@ -374,7 +374,7 @@ uv run kodax_agent.py --provider zhipu-coding --init "创建一个完整的待�
 
 ```bash
 # 在有 feature_list.json 的目录运行
-uv run kodax_agent.py --provider zhipu-coding "继续开发"
+uv run kodaxp.py --provider zhipu-coding "继续开发"
 
 # 预期：
 # 1. 显示 "[Kodax] Long-running mode enabled"
@@ -389,14 +389,14 @@ uv run kodax_agent.py --provider zhipu-coding "继续开发"
 
 ```bash
 # 1. 初始化长运行任务
-uv run kodax_agent.py --provider zhipu-coding --init "构建用户认证系统"
+uv run kodaxp.py --provider zhipu-coding --init "构建用户认证系统"
 
 # 2. 运行第一个 session
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 1
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 1
 
-# 3. 检查是否创建了 .kodax 目录和 session_plan.md
-ls -la .kodax/
-cat .kodax/session_plan.md
+# 3. 检查是否创建了 .kodaxp 目录和 session_plan.md
+ls -la .kodaxpp/
+cat .kodaxpp/session_plan.md
 
 # 预期 session_plan.md 内容结构：
 # # Session Plan
@@ -450,13 +450,13 @@ cat PROGRESS.md
 
 ```bash
 # 1. 运行多个 sessions
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 3
 
 # 2. 检查 PROGRESS.md 是否包含所有 sessions 的计划摘要
 cat PROGRESS.md
 
-# 3. 检查 .kodax/session_plan.md 是否是最新 session 的计划
-cat .kodax/session_plan.md
+# 3. 检查 .kodaxpp/session_plan.md 是否是最新 session 的计划
+cat .kodaxpp/session_plan.md
 
 # 预期：
 # - PROGRESS.md 包含 Session 1, 2, 3 的计划摘要
@@ -482,14 +482,14 @@ cat .kodax/session_plan.md
 
 ```bash
 # 测试单次会话迭代限制
-uv run kodax_agent.py --provider zhipu-coding --max-iter 5 "列出当前目录下的所有文件"
+uv run kodaxp.py --provider zhipu-coding --max-iter 5 "列出当前目录下的所有文件"
 
 # 预期：Agent 在最多 5 次迭代内完成任务
 ```
 
 ```bash
 # 测试低迭代限制（可能无法完成复杂任务）
-uv run kodax_agent.py --provider zhipu-coding --max-iter 2 "创建 10 个测试文件"
+uv run kodaxp.py --provider zhipu-coding --max-iter 2 "创建 10 个测试文件"
 
 # 预期：Agent 在 2 次迭代后停止（可能未完成）
 ```
@@ -498,13 +498,13 @@ uv run kodax_agent.py --provider zhipu-coding --max-iter 2 "创建 10 个测试�
 
 ```bash
 # 1. 首先初始化长运行项目
-uv run kodax_agent.py --provider zhipu-coding --init "构建简单的 TODO 应用"
+uv run kodaxp.py --provider zhipu-coding --init "构建简单的 TODO 应用"
 
 # 2. 检查创建的文件
 ls feature_list.json PROGRESS.md
 
 # 3. 运行 auto-continue（带限制，防止无限运行）
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 --max-hours 0.5
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 3 --max-hours 0.5
 
 # 预期：
 # - 显示 "[Kodax] Auto-continue mode enabled"
@@ -518,25 +518,25 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 -
 ```bash
 # 在没有 feature_list.json 的目录运行 auto-continue
 cd /tmp
-uv run kodax_agent.py --provider zhipu-coding --auto-continue
+uv run kodaxp.py --provider zhipu-coding --auto-continue
 
 # 预期输出：
 # [Error] --auto-continue requires a long-running project.
-#        Run 'kodax_agent.py --init "your task"' first.
+#        Run 'kodaxp.py --init "your task"' first.
 ```
 
 ### 21. --auto-continue 安全阀
 
 ```bash
 # 测试最大会话数限制
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 1
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 1
 
 # 预期：运行 1 个 session 后显示 "[Kodax] Max sessions reached (1)"
 ```
 
 ```bash
 # 测试最大小时数限制
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-hours 0.01
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-hours 0.01
 
 # 预期：约 36 秒后显示 "[Kodax] Max hours reached (0.01h)"
 ```
@@ -545,7 +545,7 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-hours 0.01
 # 测试所有功能完成后的自动停止
 # 1. 手动修改 feature_list.json，将所有 passes 设为 true
 # 2. 运行 auto-continue
-uv run kodax_agent.py --provider zhipu-coding --auto-continue
+uv run kodaxp.py --provider zhipu-coding --auto-continue
 
 # 预期：显示 "[Kodax] All features completed! (N/N)"
 ```
@@ -559,7 +559,7 @@ Agent 可以通过特殊信号与 auto-continue 循环通信。
 # Agent 完成所有功能时应输出:
 # <promise>COMPLETE</promise>
 
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 5
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 5
 
 # 预期：如果 Agent 输出 <promise>COMPLETE</promise>，则显示:
 # [Kodax Auto-Continue] Agent signaled COMPLETE
@@ -593,13 +593,13 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 5
 
 ```bash
 # 1. 第一次 init（创建初始项目）
-uv run kodax_agent.py --provider zhipu-coding --init "构建基础 TODO 应用"
+uv run kodaxp.py --provider zhipu-coding --init "构建基础 TODO 应用"
 
 # 2. 完成所有功能
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 20
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 20
 
 # 3. 尝试第二次 init（无 --append 或 --overwrite）
-uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能"
+uv run kodaxp.py --provider zhipu-coding --init "添加搜索功能"
 
 # 预期输出：
 # [Warning] feature_list.json already exists!
@@ -610,12 +610,12 @@ uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能"
 #   --overwrite   Start fresh (existing features will be lost)
 #
 #   Example:
-#   uv run kodax_agent.py --init "添加搜索功能" --append
+#   uv run kodaxp.py --init "添加搜索功能" --append
 ```
 
 ```bash
 # 4. 使用 --append 增量添加
-uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能" --append
+uv run kodaxp.py --provider zhipu-coding --init "添加搜索功能" --append
 
 # 预期：
 # [Kodax] Appending to existing project (X features, Y complete)
@@ -629,7 +629,7 @@ uv run kodax_agent.py --provider zhipu-coding --init "添加搜索功能" --appe
 
 ```bash
 # 5. 继续运行 --auto-continue
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 10
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 10
 
 # 预期：
 # - 只处理 passes: false 的新 features
@@ -638,7 +638,7 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 10
 
 ```bash
 # 6. 使用 --overwrite 完全重置
-uv run kodax_agent.py --provider zhipu-coding --init "全新项目" --overwrite
+uv run kodaxp.py --provider zhipu-coding --init "全新项目" --overwrite
 
 # 预期输出：
 # [Warning] Overwriting existing feature_list.json (X features will be lost)
@@ -655,21 +655,21 @@ uv run kodax_agent.py --provider zhipu-coding --init "全新项目" --overwrite
 
 ```bash
 # 场景 1：Bug 修复作为新 feature
-uv run kodax_agent.py --provider zhipu-coding --init "修复用户输入验证的 bug" --append
+uv run kodaxp.py --provider zhipu-coding --init "修复用户输入验证的 bug" --append
 
 # 预期：新 feature "Fix: user input validation bug" 被添加到列表
 ```
 
 ```bash
 # 场景 2：重构作为新 feature
-uv run kodax_agent.py --provider zhipu-coding --init "重构数据库访问层" --append
+uv run kodaxp.py --provider zhipu-coding --init "重构数据库访问层" --append
 
 # 预期：新 feature "Refactor: database access layer" 被添加到列表
 ```
 
 ```bash
 # 场景 3：性能优化作为新 feature
-uv run kodax_agent.py --provider zhipu-coding --init "优化查询性能" --append
+uv run kodaxp.py --provider zhipu-coding --init "优化查询性能" --append
 
 # 预期：新 feature "Optimize: query performance" 被添加到列表
 ```
@@ -682,7 +682,7 @@ uv run kodax_agent.py --provider zhipu-coding --init "优化查询性能" --appe
 
 ```bash
 # 测试并行读取多个文件
-uv run kodax_agent.py --provider zhipu-coding --parallel "
+uv run kodaxp.py --provider zhipu-coding --parallel "
 读取 README.md, pyproject.toml, test_tools.py 这三个文件，
 告诉我它们各自的用途
 "
@@ -697,10 +697,10 @@ uv run kodax_agent.py --provider zhipu-coding --parallel "
 
 ```bash
 # 测试多个子 Agent 并行执行
-uv run kodax_agent.py --provider zhipu-coding --team "
+uv run kodaxp.py --provider zhipu-coding --team "
 分析 README.md 的内容结构,
 检查 pyproject.toml 的依赖配置,
-查看 kodax_agent.py 的代码行数
+查看 kodaxp.py 的代码行数
 "
 
 # 预期：
@@ -711,7 +711,7 @@ uv run kodax_agent.py --provider zhipu-coding --team "
 
 ```bash
 # Agent Team + Thinking Mode
-uv run kodax_agent.py --provider zhipu-coding --thinking --team "
+uv run kodaxp.py --provider zhipu-coding --thinking --team "
 分析项目的整体架构,
 评估代码质量
 "
@@ -724,8 +724,8 @@ uv run kodax_agent.py --provider zhipu-coding --thinking --team "
 ### 场景 1：代码分析
 
 ```bash
-uv run kodax_agent.py --provider zhipu-coding --parallel "
-分析 kodax_agent.py 的整体结构，
+uv run kodaxp.py --provider zhipu-coding --parallel "
+分析 kodaxp.py 的整体结构，
 列出所有类和它们的功能，
 统计代码行数
 "
@@ -734,7 +734,7 @@ uv run kodax_agent.py --provider zhipu-coding --parallel "
 ### 场景 2：文件操作
 
 ```bash
-uv run kodax_agent.py --provider zhipu-coding "
+uv run kodaxp.py --provider zhipu-coding "
 1. 在 /tmp 目录创建 test_kodax 文件夹
 2. 在里面创建 3 个测试文件
 3. 用 grep 搜索包含特定内容的文件
@@ -745,7 +745,7 @@ uv run kodax_agent.py --provider zhipu-coding "
 ### 场景 3：复杂任务
 
 ```bash
-uv run kodax_agent.py --provider zhipu-coding --thinking --session complex_task "
+uv run kodaxp.py --provider zhipu-coding --thinking --session complex_task "
 帮我完成以下任务：
 1. 分析 docs/DESIGN.md 的结构
 2. 检查是否与实际代码实现一致
@@ -760,7 +760,7 @@ uv run kodax_agent.py --provider zhipu-coding --thinking --session complex_task 
 ### 1. 无效 Provider
 
 ```bash
-uv run kodax_agent.py --provider invalid "test"
+uv run kodaxp.py --provider invalid "test"
 # 预期：显示错误 "Unknown provider: invalid"
 ```
 
@@ -769,21 +769,21 @@ uv run kodax_agent.py --provider invalid "test"
 ```bash
 # 临时取消环境变量
 unset ZHIPU_API_KEY
-uv run kodax_agent.py --provider zhipu-coding "test"
+uv run kodaxp.py --provider zhipu-coding "test"
 # 预期：显示初始化错误
 ```
 
 ### 3. 文件不存在
 
 ```bash
-uv run kodax_agent.py --provider zhipu-coding "读取 /nonexistent/file.txt"
+uv run kodaxp.py --provider zhipu-coding "读取 /nonexistent/file.txt"
 # 预期：Agent 报告文件不存在错误
 ```
 
 ### 4. 无效会话
 
 ```bash
-uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "test"
+uv run kodaxp.py --provider zhipu-coding --session nonexistent_session "test"
 # 预期：创建新会话或正常处理
 ```
 
@@ -796,10 +796,10 @@ uv run kodax_agent.py --provider zhipu-coding --session nonexistent_session "tes
 ```bash
 # 1. 在 KodaXP 项目创建 session
 cd /path/to/KodaXP
-uv run kodax_agent.py --provider zhipu-coding "记住项目名是 KodaX"
+uv run kodaxp.py --provider zhipu-coding "记住项目名是 KodaX"
 
 # 2. 查看创建的 session（应该显示）
-uv run kodax_agent.py --session list
+uv run kodaxp.py --session list
 # 预期：显示刚创建的 session
 ```
 
@@ -808,13 +808,13 @@ uv run kodax_agent.py --session list
 cd /path/to/other-project
 
 # 4. 测试 --session list（应该不显示 KodaX 的 session）
-uv run kodax_agent.py --session list
+uv run kodaxp.py --session list
 # 预期：No sessions found. 或只显示当前项目的 sessions
 ```
 
 ```bash
 # 5. 直接指定 KodaXP session（应该警告项目不匹配）
-uv run kodax_agent.py --provider zhipu-coding --session <kodax_session_id> "test"
+uv run kodaxp.py --provider zhipu-coding --session <kodax_session_id> "test"
 
 # 预期输出：
 # [Warning] Session project mismatch:
@@ -828,7 +828,7 @@ uv run kodax_agent.py --provider zhipu-coding --session <kodax_session_id> "test
 ```bash
 # 在项目子目录中测试（应该能正确匹配）
 cd /path/to/KodaXP/src
-uv run kodax_agent.py --session list
+uv run kodaxp.py --session list
 # 预期：显示 KodaXP 项目的 sessions（因为 git_root 相同）
 ```
 
@@ -842,7 +842,7 @@ uv run kodax_agent.py --session list
 
 ```bash
 # 测试环境上下文注入（Windows）
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 创建一个 test_env.txt 文件，然后移动到 test_folder 文件夹
 "
 
@@ -858,7 +858,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试错误识别与恢复
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 列出当前目录所有文件（使用 ls 命令）
 "
 
@@ -874,7 +874,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 ```bash
 # 验证上下文注入
 # 在新会话中，Agent 应该能看到平台信息
-uv run kodax_agent.py --provider zhipu-coding "
+uv run kodaxp.py --provider zhipu-coding "
 告诉我你运行在什么平台上
 "
 
@@ -885,14 +885,14 @@ uv run kodax_agent.py --provider zhipu-coding "
 
 ```bash
 # 测试中文输出
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "echo '测试中文输出'"
+uv run kodaxp.py --provider zhipu-coding --no-confirm "echo '测试中文输出'"
 
 # 预期：输出包含 "测试中文输出"，没有 UnicodeDecodeError
 ```
 
 ```bash
 # 测试中文 commit message
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 1. 创建 test_cn.txt，内容是 '测试'
 2. git add test_cn.txt
 3. git commit -m '添加测试文件'
@@ -905,7 +905,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试连续 git 命令不会触发 race condition
-uv run kodax_agent.py --provider zhipu-coding --parallel --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --parallel --no-confirm "
 1. git add .
 2. git status
 3. git log --oneline -3
@@ -921,7 +921,7 @@ uv run kodax_agent.py --provider zhipu-coding --parallel --no-confirm "
 
 ```bash
 # 测试 kimi-code thinking mode 多轮工具调用
-uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
+uv run kodaxp.py --provider kimi-code --thinking --no-confirm "
 1. 读取 README.md
 2. 总结主要内容
 "
@@ -934,7 +934,7 @@ uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
 
 ```bash
 # 测试 zhipu-coding thinking mode
-uv run kodax_agent.py --provider zhipu-coding --thinking --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --thinking --no-confirm "
 1. 列出当前目录文件
 2. 找到所有 .md 文件
 "
@@ -946,7 +946,7 @@ uv run kodax_agent.py --provider zhipu-coding --thinking --no-confirm "
 
 ```bash
 # 测试 Windows 路径处理
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 读取 C:/Works/Projects/KodaXP/README.md 的前 10 行
 "
 
@@ -959,27 +959,27 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 | 功能 | 测试命令 | 状态 |
 |------|---------|------|
-| 基本对话 | `uv run kodax_agent.py "你好"` | ☐ |
-| 确认机制 | `uv run kodax_agent.py "创建文件"` | ☐ |
-| 禁用确认 | `uv run kodax_agent.py --no-confirm "..."` | ☐ |
+| 基本对话 | `uv run kodaxp.py "你好"` | ☐ |
+| 确认机制 | `uv run kodaxp.py "创建文件"` | ☐ |
+| 禁用确认 | `uv run kodaxp.py --no-confirm "..."` | ☐ |
 | 流式输出 | 观察输出是否逐步显示 | ☐ |
 | 等待指示器 | 观察 `[Assistant]` 后是否出现 `.....` | ☐ |
-| Thinking Mode | `uv run kodax_agent.py --thinking "..."` | ☐ |
-| Session List | `uv run kodax_agent.py --session list` | ☐ |
-| Session Resume | `uv run kodax_agent.py --session resume "..."` | ☐ |
+| Thinking Mode | `uv run kodaxp.py --thinking "..."` | ☐ |
+| Session List | `uv run kodaxp.py --session list` | ☐ |
+| Session Resume | `uv run kodaxp.py --session resume "..."` | ☐ |
 | Session 项目过滤 | 跨项目 `--session list` 测试 | ☐ |
 | Session 跨项目警告 | 跨项目 `--session <id>` 测试 | ☐ |
-| 并行执行 | `uv run kodax_agent.py --parallel "..."` | ☐ |
-| Agent Team | `uv run kodax_agent.py --team "..."` | ☐ |
-| Skill 调用 | `uv run kodax_agent.py /skill_name` | ☐ |
+| 并行执行 | `uv run kodaxp.py --parallel "..."` | ☐ |
+| Agent Team | `uv run kodaxp.py --team "..."` | ☐ |
+| Skill 调用 | `uv run kodaxp.py /skill_name` | ☐ |
 | 多 Provider | 切换不同 --provider 测试 | ☐ |
-| Git Context | `uv run kodax_agent.py "当前分支是什么"` | ☐ |
-| 项目快照 | `uv run kodax_agent.py "项目结构是什么"` | ☐ |
+| Git Context | `uv run kodaxp.py "当前分支是什么"` | ☐ |
+| 项目快照 | `uv run kodaxp.py "项目结构是什么"` | ☐ |
 | Todo 追踪 | 多步骤任务测试 | ☐ |
 | Undo | 修改后撤销测试 | ☐ |
-| --max-iter | `uv run kodax_agent.py --max-iter 5 "..."` | ☐ |
-| --init | `uv run kodax_agent.py --init "..."` | ☐ |
-| --auto-continue | `uv run kodax_agent.py --auto-continue` | ☐ |
+| --max-iter | `uv run kodaxp.py --max-iter 5 "..."` | ☐ |
+| --init | `uv run kodaxp.py --init "..."` | ☐ |
+| --auto-continue | `uv run kodaxp.py --auto-continue` | ☐ |
 | --auto-continue 依赖检查 | 无 feature_list.json 时运行 | ☐ |
 | --auto-continue 安全阀 | --max-sessions / --max-hours 测试 | ☐ |
 | Promise 信号 | Agent 主动发送 COMPLETE/BLOCKED/DECIDE | ☐ |
@@ -1006,7 +1006,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 ```bash
 # 测试缺少 command 参数的错误信息
 # 在对话中引导 Agent 犯错（或不提供参数）
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 尝试调用 bash 工具但不提供 command 参数，看看错误信息是什么
 "
 
@@ -1016,7 +1016,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试 edit 工具缺少 new_string 参数
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 尝试编辑 test.txt 文件，只提供 path 和 old_string，不提供 new_string
 "
 
@@ -1030,7 +1030,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试长时间任务中的错误恢复
-uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 "
+uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 3 "
 执行一个多步骤任务，故意在某一步可能犯错，观察是否能自我修复
 "
 
@@ -1059,7 +1059,7 @@ uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3 "
 
 ```bash
 # 测试大文件写入（可能触发截断）
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 创建一个包含 500 行 HTML 代码的文件 large_test.html
 "
 
@@ -1075,7 +1075,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 观察自动重试是否成功
-uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
+uv run kodaxp.py --provider kimi-code --thinking --no-confirm "
 创建一个较复杂的 HTML 文件，包含头部、导航栏、主要内容区域和页脚
 "
 
@@ -1101,7 +1101,7 @@ uv run kodax_agent.py --provider kimi-code --thinking --no-confirm "
 
 ```bash
 # 验证提示词引导是否生效
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 创建一个大型配置文件 config.yaml，包含数据库配置、缓存配置、日志配置等多个部分
 "
 
@@ -1117,7 +1117,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试分级重试提示（需要观察 session 文件中的 retry_prompt）
-uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+uv run kodaxp.py --provider zhipu-coding --no-confirm "
 创建一个非常大的 Python 文件，包含 10 个工具函数，每个函数都有完整的 docstring 和类型注解
 "
 
@@ -1150,12 +1150,12 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 
 ```bash
 # 测试首次响应时间
-time uv run kodax_agent.py --provider zhipu-coding "你好"
+time uv run kodaxp.py --provider zhipu-coding "你好"
 # 预期：< 3 秒开始输出
 
 # 测试并行效率
-time uv run kodax_agent.py --provider zhipu-coding --parallel "读取 README.md, pyproject.toml"
-time uv run kodax_agent.py --provider zhipu-coding "读取 README.md, pyproject.toml"
+time uv run kodaxp.py --provider zhipu-coding --parallel "读取 README.md, pyproject.toml"
+time uv run kodaxp.py --provider zhipu-coding "读取 README.md, pyproject.toml"
 # 对比是否并行更快
 ```
 

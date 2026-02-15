@@ -42,7 +42,7 @@ KodaXP 专为想要**理解**、**定制**和**掌控** AI 编程助手的开发
 
 ## 特性
 
-- **单文件** - 所有代码在 `kodax_agent.py`，读懂它，改它，发布它
+- **单文件** - 所有代码在 `kodaxp.py`，读懂它，改它，发布它
 - **7 个模型** - Anthropic, OpenAI, Kimi, Kimi Code, 智谱, 智谱 Coding, 通义千问
 - **流式输出** - 实时显示，不用等待
 - **会话记忆** - 对话跨次保存
@@ -66,29 +66,29 @@ uv sync
 export ANTHROPIC_API_KEY=your-key    # 或 KIMI_API_KEY, ZHIPU_API_KEY 等
 
 # 运行
-uv run kodax_agent.py "用 FastAPI 创建一个 REST API"
+uv run kodaxp.py "用 FastAPI 创建一个 REST API"
 ```
 
 ## 使用
 
 ```bash
 # 基本用法
-uv run kodax_agent.py "你的编程任务"
+uv run kodaxp.py "你的编程任务"
 
 # 使用其他模型
-uv run kodax_agent.py --provider kimi-code "你的任务"
+uv run kodaxp.py --provider kimi-code "你的任务"
 
 # 复杂任务开启思考模式
-uv run kodax_agent.py --provider zhipu-coding --thinking "重构这个项目"
+uv run kodaxp.py --provider zhipu-coding --thinking "重构这个项目"
 
 # 恢复之前的对话
-uv run kodax_agent.py --session resume "继续之前的 API 开发"
+uv run kodaxp.py --session resume "继续之前的 API 开发"
 
 # 并行执行（多文件任务更快）
-uv run kodax_agent.py --parallel "读取所有 markdown 文件并总结"
+uv run kodaxp.py --parallel "读取所有 markdown 文件并总结"
 
 # 多任务并行
-uv run kodax_agent.py --team "分析代码结构,检查测试覆盖率,查找 bug"
+uv run kodaxp.py --team "分析代码结构,检查测试覆盖率,查找 bug"
 ```
 
 ## 支持的模型
@@ -105,11 +105,11 @@ uv run kodax_agent.py --team "分析代码结构,检查测试覆盖率,查找 bu
 
 ## 技能系统
 
-在 `~/.kodax/skills/` 创建自定义技能：
+在 `~/.kodaxp/skills/` 创建自定义技能：
 
 **Python 技能**（灵活，可执行工具）：
 ```python
-# ~/.kodax/skills/commit.py
+# ~/.kodaxp/skills/commit.py
 
 def skill_commit(agent, args: str) -> str:
     """根据 git diff 生成 commit 消息"""  # <- 自动提取为描述
@@ -121,7 +121,7 @@ def skill_commit(agent, args: str) -> str:
 
 **Markdown 技能**（简单，纯提示词）：
 ```markdown
-# ~/.kodax/skills/review.md
+# ~/.kodaxp/skills/review.md
 
 # 代码审查
 
@@ -133,9 +133,9 @@ def skill_commit(agent, args: str) -> str:
 ```
 
 ```bash
-uv run kodax_agent.py              # 列出所有技能及描述
-uv run kodax_agent.py /commit      # 执行技能
-uv run kodax_agent.py /review src/main.py
+uv run kodaxp.py              # 列出所有技能及描述
+uv run kodaxp.py /commit      # 执行技能
+uv run kodaxp.py /review src/main.py
 ```
 
 ## 命令选项
@@ -160,7 +160,7 @@ uv run kodax_agent.py /review src/main.py
 
 **方式一：直接运行（推荐开发时使用）**
 ```bash
-uv run kodax_agent.py "你的任务"
+uv run kodaxp.py "你的任务"
 ```
 - 代码修改立即生效
 - 适合开发调试
@@ -168,24 +168,24 @@ uv run kodax_agent.py "你的任务"
 **方式二：安装为全局工具**
 ```bash
 uv tool install -e .
-kodax "你的任务"
+kodaxp "你的任务"
 ```
-- 命令更短，任何目录都能用 `kodax`
+- 命令更短，任何目录都能用 `kodaxp`
 - `-e` 表示可编辑模式，代码修改仍然生效
-- `uv tool uninstall kodax` 可以卸载
+- `uv tool uninstall kodaxp` 可以卸载
 
 ### 设置默认 Provider
 
 **方式一：环境变量**
 ```bash
 export KODAX_PROVIDER=kimi-code
-uv run kodax_agent.py "你的任务"  # 使用 kimi-code
+uv run kodaxp.py "你的任务"  # 使用 kimi-code
 ```
 
 **方式二：Shell Alias**
 ```bash
 # 添加到 ~/.bashrc 或 ~/.zshrc
-alias kodax='uv run /path/to/KodaXP/kodax_agent.py --provider kimi-code'
+alias kodaxp='uv run /path/to/KodaXP/kodaxp.py --provider kimi-code'
 ```
 
 **优先级**：`--provider` 命令行参数 > `KODAX_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
@@ -213,17 +213,17 @@ export OPENAI_API_KEY=your-key     # OpenAI
 
 ```bash
 # 初始化
-uv run kodax_agent.py --init "构建 claude.ai 克隆"
+uv run kodaxp.py --init "构建 claude.ai 克隆"
 
 # 这会创建：
 # - feature_list.json (所有功能，初始 passes: false)
 # - PROGRESS.md (进度日志)
 
 # 继续工作（自动检测长运行模式）
-uv run kodax_agent.py "继续开发"
+uv run kodaxp.py "继续开发"
 
 # 第二天继续
-uv run kodax_agent.py --session resume "继续昨天的工作"
+uv run kodaxp.py --session resume "继续昨天的工作"
 ```
 
 ### 自动继续模式
@@ -232,13 +232,13 @@ uv run kodax_agent.py --session resume "继续昨天的工作"
 
 ```bash
 # 先初始化
-uv run kodax_agent.py --init "构建带认证的 REST API"
+uv run kodaxp.py --init "构建带认证的 REST API"
 
 # 自动继续直到所有功能通过（带安全限制）
-uv run kodax_agent.py --auto-continue
+uv run kodaxp.py --auto-continue
 
 # 自定义限制
-uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
+uv run kodaxp.py --auto-continue --max-sessions 20 --max-hours 4.0
 ```
 
 自动继续会在以下情况停止：
@@ -251,14 +251,14 @@ uv run kodax_agent.py --auto-continue --max-sessions 20 --max-hours 4.0
 
 ## 原理
 
-Kodax 是一个简单的 Agent 循环：
+KodaXP 是一个简单的 Agent 循环：
 
 1. 把你的任务 + 可用工具发给大模型
 2. 大模型返回文本和/或工具调用
 3. 执行工具，把结果发回去
 4. 重复直到完成
 
-核心逻辑只有 ~100 行。读 [kodax_agent.py](../kodax_agent.py) 就能完全理解它是怎么工作的。
+核心逻辑只有 ~100 行。读 [kodaxp.py](../kodaxp.py) 就能完全理解它是怎么工作的。
 
 ## 文档
 
