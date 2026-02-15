@@ -288,6 +288,59 @@ ls feature_list.json PROGRESS.md init.sh
 # 预期：三个文件都存在
 ```
 
+### 15.1 Feature 粒度验证（简单任务）
+
+验证 Agent 是否正确识别任务复杂度并生成合适数量的 features。
+
+```bash
+# 测试简单任务（单文件 HTML）
+uv run kodax_agent.py --provider zhipu-coding --init "创建一个游戏行业介绍的交互式HTML页面"
+
+# 预期：feature_list.json 有 1-3 个 features
+# 例如：
+# 1. "Create interactive HTML page for game industry introduction (content, styles, interactions)"
+# 而不是：
+# 1. "Create HTML structure" (太细碎)
+# 2. "Add CSS styles" (太细碎)
+# 3. "Add JavaScript" (太细碎)
+# ...
+
+cat feature_list.json
+# 检查 features 数量是否合理
+```
+
+### 15.2 Feature 粒度验证（中等任务）
+
+```bash
+# 测试中等任务（多页网站）
+uv run kodax_agent.py --provider zhipu-coding --init "创建一个包含首页、关于页、联系页的多页网站"
+
+# 预期：feature_list.json 有 3-8 个 features
+# 例如：
+# 1. "Create shared layout, navigation and footer"
+# 2. "Create home page with hero section"
+# 3. "Create about page"
+# 4. "Create contact page with form"
+```
+
+### 15.3 Feature 粒度验证（复杂任务）
+
+```bash
+# 测试复杂任务（完整应用）
+uv run kodax_agent.py --provider zhipu-coding --init "创建一个完整的待办事项应用，包含前端、后端API和数据库"
+
+# 预期：feature_list.json 有 8-15 个 features
+# 例如：
+# 1. "Set up project structure and database schema"
+# 2. "Create todo API - list and create endpoints"
+# 3. "Create todo API - update and delete endpoints"
+# 4. "Set up frontend project with routing"
+# 5. "Create todo list page"
+# 6. "Create add/edit todo functionality"
+# 7. "Add user authentication (optional)"
+# 8. "Add data persistence and error handling"
+```
+
 ### 16. 长运行模式自动检测
 
 ```bash

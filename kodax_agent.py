@@ -391,6 +391,15 @@ IMPORTANT Rules:
 - Work on ONE feature at a time. Do not start new features until current one is complete.
 - Always verify features work end-to-end before marking as passing.
 
+## Efficiency Rules (CRITICAL)
+
+1. Each session MUST complete at least ONE full feature (not just start it)
+2. Minimum meaningful code change per session: 50+ lines
+3. A single-page display task should be completed in ONE session
+4. Avoid re-reading the same files - remember what you've read
+5. Write code efficiently - don't over-engineer simple tasks
+6. If a feature is taking too long, it might be too large - but don't give up, complete it
+
 ## Promise Signals (Ralph-Loop Style)
 
 When you need to communicate status to the orchestrator, use these special signals:
@@ -1703,22 +1712,47 @@ After updating files, commit:
 Create these files in the current directory:
 
 1. **feature_list.json** - A list of features for this project.
-   Format:
-   {{
-     "features": [
-       {{
-         "description": "Feature description (clear and testable)",
-         "steps": ["step 1", "step 2", "step 3"],
-         "passes": false
-       }}
-     ]
-   }}
 
-   **Feature Guidelines:**
-   - Aim for 10-15 features, NOT 40+
-   - Each "step" should be a SEPARATE feature (not a subtask within a feature)
-   - Keep each feature SMALL (completable in 1 session, ~30-60 min of work)
-   - Focus on MVP features first
+**What is a Feature?**
+A feature is a COMPLETE, TESTABLE functionality that can be finished in 1-2 sessions.
+- Code size: ~50-300 lines per feature
+- Time: ~10-60 minutes of actual development work
+- Testable: Has clear "done" criteria
+
+**Feature Count Guidelines (use your judgment, not hard limits):**
+- **Simple task** (single file, display page, config): 1-3 features
+- **Medium task** (multi-page site, CLI tool, small API): 3-8 features
+- **Complex task** (full app with frontend + backend + database): 8-15 features
+
+**DO:**
+- Split by user-facing features (page A, page B, API group C)
+- Each feature = something a user can actually USE
+
+**DO NOT:**
+- Split by technical layers (HTML → CSS → JS → content)
+- Create features smaller than ~50 lines of code
+- Create features larger than ~300 lines of code
+
+**Examples of GOOD features:**
+- "User authentication (register, login, logout)" - complete system
+- "Todo list page with add/delete/mark-done" - complete page functionality
+- "REST API for todos (GET, POST, PUT, DELETE)" - complete API resource
+
+**Examples of BAD features:**
+- "Add HTML structure" - too small, technical layer
+- "Create the entire application" - too large
+- "Add button styling" - trivial, not a feature
+
+Format:
+{{
+  "features": [
+    {{
+      "description": "Feature description (clear and testable)",
+      "steps": ["step 1", "step 2", "step 3"],
+      "passes": false
+    }}
+  ]
+}}
 
 2. **PROGRESS.md** - A progress log file:
    # Progress Log
@@ -1760,22 +1794,47 @@ After creating files, make an initial git commit:
 Create these files in the current directory:
 
 1. **feature_list.json** - A list of features for this project.
-   Format:
-   {{
-     "features": [
-       {{
-         "description": "Feature description (clear and testable)",
-         "steps": ["step 1", "step 2", "step 3"],
-         "passes": false
-       }}
-     ]
-   }}
 
-   **Feature Guidelines:**
-   - Aim for 10-15 features, NOT 40+
-   - Each "step" should be a SEPARATE feature (not a subtask within a feature)
-   - Keep each feature SMALL (completable in 1 session, ~30-60 min of work)
-   - Focus on MVP features first
+**What is a Feature?**
+A feature is a COMPLETE, TESTABLE functionality that can be finished in 1-2 sessions.
+- Code size: ~50-300 lines per feature
+- Time: ~10-60 minutes of actual development work
+- Testable: Has clear "done" criteria
+
+**Feature Count Guidelines (use your judgment, not hard limits):**
+- **Simple task** (single file, display page, config): 1-3 features
+- **Medium task** (multi-page site, CLI tool, small API): 3-8 features
+- **Complex task** (full app with frontend + backend + database): 8-15 features
+
+**DO:**
+- Split by user-facing features (page A, page B, API group C)
+- Each feature = something a user can actually USE
+
+**DO NOT:**
+- Split by technical layers (HTML → CSS → JS → content)
+- Create features smaller than ~50 lines of code
+- Create features larger than ~300 lines of code
+
+**Examples of GOOD features:**
+- "User authentication (register, login, logout)" - complete system
+- "Todo list page with add/delete/mark-done" - complete page functionality
+- "REST API for todos (GET, POST, PUT, DELETE)" - complete API resource
+
+**Examples of BAD features:**
+- "Add HTML structure" - too small, technical layer
+- "Create the entire application" - too large
+- "Add button styling" - trivial, not a feature
+
+Format:
+{{
+  "features": [
+    {{
+      "description": "Feature description (clear and testable)",
+      "steps": ["step 1", "step 2", "step 3"],
+      "passes": false
+    }}
+  ]
+}}
 
 2. **PROGRESS.md** - A progress log file:
    # Progress Log
