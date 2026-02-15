@@ -89,6 +89,36 @@ FILE_BACKUPS: dict[str, str] = {}
 # 长时间运行状态文件
 FEATURES_FILE = "feature_list.json"
 PROGRESS_FILE = "PROGRESS.md"
+SESSION_PLAN_DIR = ".kodax"
+SESSION_PLAN_FILE = ".kodax/session_plan.md"
+
+# Session 计划模板
+SESSION_PLAN_TEMPLATE = """# Session Plan
+
+**Date**: {date}
+**Feature**: {feature}
+
+## Understanding
+[Describe what this feature does and why it's needed]
+
+## Approach
+[Describe how you plan to implement this feature]
+
+## Steps
+1. [First step]
+2. [Second step]
+3. [Third step]
+...
+
+## Considerations
+- [Edge cases to handle]
+- [Dependencies to check]
+- [Security implications]
+
+## Risks
+- [What could go wrong]
+- [How to mitigate]
+"""
 
 # Promise 信号模式（Ralph-Loop 风格）
 PROMISE_PATTERN = re.compile(r'<promise>(COMPLETE|BLOCKED|DECIDE)(?::(.*?))?</promise>', re.IGNORECASE)
@@ -381,15 +411,70 @@ You are in a long-running task mode. At the start of EACH session, follow these 
 1. Run `pwd` to confirm your working directory
 2. Read git logs (`git log --oneline -10`) and PROGRESS.md to understand recent work
 3. Read feature_list.json and pick ONE incomplete feature (passes: false)
-4. Test basic functionality before implementing new features
-5. Implement the feature incrementally, testing as you go
-6. End session with: git commit + update PROGRESS.md
+4. **Write a session plan** to .kodax/session_plan.md (see Session Planning section below)
+5. Execute the plan step by step, testing as you go
+6. End session with: git commit + update PROGRESS.md with plan summary
 
 IMPORTANT Rules:
 - Only change `passes` field in feature_list.json. NEVER remove or modify features.
 - Leave codebase in clean state after each session (no half-implemented features).
 - Work on ONE feature at a time. Do not start new features until current one is complete.
 - Always verify features work end-to-end before marking as passing.
+
+## Session Planning (CRITICAL for Quality)
+
+Before writing ANY code in this session, you MUST create a plan file:
+
+1. **Create directory**: `mkdir -p .kodax` (if not exists)
+2. **Write plan** to `.kodax/session_plan.md` with this structure:
+
+```markdown
+# Session Plan
+
+**Date**: [current date]
+**Feature**: [feature description from feature_list.json]
+
+## Understanding
+[Your understanding of what this feature does and why it's needed]
+
+## Approach
+[How you plan to implement this feature - be specific about technical choices]
+
+## Steps
+1. [First step - e.g., "Check existing code structure"]
+2. [Second step - e.g., "Create user model"]
+3. [Third step - e.g., "Add API routes"]
+...
+
+## Considerations
+- [Edge cases to handle]
+- [Dependencies to check first]
+- [Security implications]
+- [Performance considerations]
+
+## Risks
+- [What could go wrong]
+- [How to mitigate each risk]
+```
+
+3. **Execute** the plan step by step
+4. **After execution**, update PROGRESS.md with a summary:
+
+```markdown
+## Session N - [date]
+
+### Plan
+[Brief summary of what you planned to do]
+
+### Completed
+- [What was actually done]
+
+### Notes
+- [Key learnings]
+- [Issues encountered and how you solved them]
+```
+
+This planning step ensures you think through the implementation before coding, leading to higher quality output.
 
 ## Efficiency Rules (CRITICAL)
 

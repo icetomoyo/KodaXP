@@ -354,6 +354,86 @@ uv run kodax_agent.py --provider zhipu-coding "继续开发"
 # 4. Agent 结束前更新 PROGRESS.md
 ```
 
+### 17.1 Session 计划机制（新增）
+
+验证 Agent 是否在执行前创建计划文件：
+
+```bash
+# 1. 初始化长运行任务
+uv run kodax_agent.py --provider zhipu-coding --init "构建用户认证系统"
+
+# 2. 运行第一个 session
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 1
+
+# 3. 检查是否创建了 .kodax 目录和 session_plan.md
+ls -la .kodax/
+cat .kodax/session_plan.md
+
+# 预期 session_plan.md 内容结构：
+# # Session Plan
+#
+# **Date**: 2026-02-15
+# **Feature**: User authentication
+#
+# ## Understanding
+# [Agent 的理解]
+#
+# ## Approach
+# [Agent 的实现方案]
+#
+# ## Steps
+# 1. ...
+# 2. ...
+#
+# ## Considerations
+# - ...
+#
+# ## Risks
+# - ...
+```
+
+### 17.2 PROGRESS.md 计划摘要
+
+验证 PROGRESS.md 是否包含计划摘要：
+
+```bash
+# 检查 PROGRESS.md 是否包含计划摘要
+cat PROGRESS.md
+
+# 预期内容结构：
+# ## Session 1 - 2026-02-15
+#
+# ### Plan
+# Implement user authentication with JWT tokens
+#
+# ### Completed
+# - Created user model
+# - Added login/logout routes
+#
+# ### Notes
+# - Used bcrypt for password hashing
+# - Tested all endpoints with curl
+```
+
+### 17.3 跨 Session 连续性
+
+验证计划机制是否保持跨 session 的连续性：
+
+```bash
+# 1. 运行多个 sessions
+uv run kodax_agent.py --provider zhipu-coding --auto-continue --max-sessions 3
+
+# 2. 检查 PROGRESS.md 是否包含所有 sessions 的计划摘要
+cat PROGRESS.md
+
+# 3. 检查 .kodax/session_plan.md 是否是最新 session 的计划
+cat .kodax/session_plan.md
+
+# 预期：
+# - PROGRESS.md 包含 Session 1, 2, 3 的计划摘要
+# - session_plan.md 是 Session 3 的完整计划
+```
+
 ### 17. 长运行模式提示词
 
 验证 Agent 是否遵循长运行模式的标准流程：
