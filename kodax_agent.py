@@ -1452,14 +1452,29 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
                     session.messages.pop()
 
                     # 发送 follow-up 请求
-                    retry_prompt = f"""Your previous response was truncated or incomplete. The following tool calls are missing required parameters:
+                    # 根据重试次数动态调整提示强度
+                    if incomplete_retry_count == 1:
+                        # 第一次重试：温和引导
+                        retry_prompt = f"""Your previous response was truncated. Missing required parameters:
 {chr(10).join('- ' + i for i in incomplete)}
 
-Please provide the complete tool calls with ALL required parameters. For large file writes, consider:
-1. Writing the file structure first, then using edit to add sections
-2. Breaking into multiple smaller writes
+Please provide the complete tool calls with ALL required parameters.
+For large content, keep it concise (under 50 lines for write operations)."""
 
-Retry with complete parameters."""
+                    else:
+                        # 第二次重试：强烈警告 + 具体限制
+                        retry_prompt = f"""⚠️ CRITICAL: Your response was TRUNCATED again. This is retry {incomplete_retry_count}/{MAX_INCOMPLETE_RETRIES}.
+
+MISSING PARAMETERS:
+{chr(10).join('- ' + i for i in incomplete)}
+
+YOU MUST:
+1. For 'write' tool: Keep content under 50 lines - write structure first, fill in later with 'edit'
+2. For 'edit' tool: Keep new_string under 30 lines - make smaller, focused changes
+3. Provide ALL required parameters in your tool call
+
+If your response is truncated again, the task will FAIL.
+PROVIDE SHORT, COMPLETE PARAMETERS NOW."""
 
                     session.messages.append({"role": "user", "content": retry_prompt})
                     continue  # 跳过工具执行，继续下一次 LLM 调用

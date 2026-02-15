@@ -783,6 +783,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 | **错误恢复指导** | 模型不重复同样的错误 | ☐ |
 | **截断检测** | 大文件写入时自动检测缺失参数 | ☐ |
 | **自动重试** | 检测截断后自动发送 follow-up 请求 | ☐ |
+| **分级重试提示** | 根据重试次数动态调整提示强度 | ☐ |
 | **分段写入引导** | 提示词引导 LLM 分段写入大文件 | ☐ |
 
 ---
@@ -901,12 +902,34 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 # 而不是一次性写入所有内容
 ```
 
-### 34. 截断检测日志
+### 34. 分级重试提示验证
+
+测试改进后的 retry prompt 是否根据重试次数动态调整强度。
+
+```bash
+# 测试分级重试提示（需要观察 session 文件中的 retry_prompt）
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+创建一个非常大的 Python 文件，包含 10 个工具函数，每个函数都有完整的 docstring 和类型注解
+"
+
+# 预期行为：
+# 第一次重试（retry 1/2）：
+#   - 提示词较温和："Your previous response was truncated..."
+#   - 建议 "keep it concise (under 50 lines)"
+#
+# 第二次重试（retry 2/2）：
+#   - 提示词强烈："⚠️ CRITICAL: Your response was TRUNCATED again..."
+#   - 具体限制："under 50 lines for write", "under 30 lines for edit"
+#   - 警告："If your response is truncated again, the task will FAIL."
+```
+
+### 35. 截断检测日志
 
 | 场景 | 预期日志 |
 |------|---------|
 | 检测到参数缺失 | `[Kodax] Detected incomplete tool call(s): write: missing 'content'` |
-| 开始重试 | `[Kodax] Requesting completion (retry 1/2)...` |
+| 第一次重试 | `[Kodax] Requesting completion (retry 1/2)...` |
+| 第二次重试 | `[Kodax] Requesting completion (retry 2/2)...` |
 | 重试成功 | 继续正常执行工具 |
 | 重试耗尽 | `[Kodax] Max retries reached for incomplete tool calls.` |
 
