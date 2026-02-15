@@ -181,6 +181,13 @@ def get_git_root() -> str:
     return ""
 
 
+def get_environment_context() -> str:
+    """获取环境上下文（平台信息）"""
+    if sys.platform == 'win32':
+        return "Platform: Windows (use: dir, move, copy, del)"
+    return f"Platform: {sys.platform}"
+
+
 def get_project_snapshot(max_depth: int = 2, max_files: int = 50) -> str:
     """获取项目结构快照"""
     try:
@@ -389,6 +396,15 @@ When a tool call returns an error:
 
 - Be careful with destructive operations
 - Prefer read-only operations when possible
+
+### Cross-Platform Notes
+
+Different platforms have different commands:
+- Move: `move` (Windows) vs `mv` (Unix/Mac)
+- List: `dir` (Windows) vs `ls` (Unix/Mac)
+- Delete: `del` (Windows) vs `rm` (Unix/Mac)
+
+If you see "不是内部或外部命令" or "not recognized", the command doesn't exist on this platform. Try the equivalent command.
 
 ## Multi-step Tasks
 
@@ -1478,8 +1494,13 @@ def run_single_session(args, user_prompt: str, session_id: str = None) -> tuple[
         print(f"Failed to initialize provider: {e}")
         return False, ""
 
-    # 构建上下文（Git + 项目快照 + 长运行模式）
+    # 构建上下文（环境 + Git + 项目快照 + 长运行模式）
     context_parts = []
+
+    # 环境上下文（始终注入，帮助 Agent 了解平台）
+    env_ctx = get_environment_context()
+    if env_ctx:
+        context_parts.append(env_ctx)
 
     # Git 上下文（仅新会话时获取）
     if not session_id:

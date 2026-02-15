@@ -836,7 +836,52 @@ uv run kodax_agent.py --session list
 
 ## Windows 环境兼容性测试 (P0)
 
-### 23. UTF-8 编码测试
+### 23. 环境感知与跨平台命令测试
+
+验证 Agent 是否能根据平台信息使用正确的命令。
+
+```bash
+# 测试环境上下文注入（Windows）
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+创建一个 test_env.txt 文件，然后移动到 test_folder 文件夹
+"
+
+# 预期（Windows）：
+# 1. Context 显示 "Platform: Windows (use: dir, move, copy, del)"
+# 2. Agent 使用 move 命令（而非 mv）
+# 3. 文件成功移动
+
+# 预期（Unix/Mac）：
+# 1. Context 显示 "Platform: linux/darwin"
+# 2. Agent 使用 mv 命令
+```
+
+```bash
+# 测试错误识别与恢复
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+列出当前目录所有文件（使用 ls 命令）
+"
+
+# 预期（Windows）：
+# 1. 如果 Agent 错误使用了 ls，会看到 "不是内部或外部命令" 错误
+# 2. Agent 应该识别这是平台问题，改用 dir 命令
+# 3. 不会尝试 "读文件→重写" 的错误方案
+
+# 预期（Unix/Mac）：
+# ls 命令正常工作
+```
+
+```bash
+# 验证上下文注入
+# 在新会话中，Agent 应该能看到平台信息
+uv run kodax_agent.py --provider zhipu-coding "
+告诉我你运行在什么平台上
+"
+
+# 预期：Agent 能回答 "Windows" 或对应平台
+```
+
+### 24. UTF-8 编码测试
 
 ```bash
 # 测试中文输出
@@ -856,7 +901,7 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 # 预期：git commit 成功，没有 index.lock 错误，没有编码错误
 ```
 
-### 24. Git 命令顺序执行测试
+### 25. Git 命令顺序执行测试
 
 ```bash
 # 测试连续 git 命令不会触发 race condition
@@ -872,7 +917,7 @@ uv run kodax_agent.py --provider zhipu-coding --parallel --no-confirm "
 # 3. git status 等非 bash 命令可以并行
 ```
 
-### 25. Thinking Mode 多轮测试
+### 26. Thinking Mode 多轮测试
 
 ```bash
 # 测试 kimi-code thinking mode 多轮工具调用
@@ -897,7 +942,7 @@ uv run kodax_agent.py --provider zhipu-coding --thinking --no-confirm "
 # 预期：同上
 ```
 
-### 26. 跨平台路径测试
+### 27. 跨平台路径测试
 
 ```bash
 # 测试 Windows 路径处理
@@ -939,6 +984,8 @@ uv run kodax_agent.py --provider zhipu-coding --no-confirm "
 | --auto-continue 安全阀 | --max-sessions / --max-hours 测试 | ☐ |
 | Promise 信号 | Agent 主动发送 COMPLETE/BLOCKED/DECIDE | ☐ |
 | **Windows UTF-8 编码** | 中文输出测试 | ☐ |
+| **环境感知注入** | Agent 知道运行平台 | ☐ |
+| **跨平台命令** | Windows 用 move 而非 mv | ☐ |
 | **Git 顺序执行** | 并行模式下连续 git 命令 | ☐ |
 | **Thinking 多轮调用** | kimi-code/zhipu-coding thinking 多工具 | ☐ |
 | **错误信息增强** | 缺少参数时显示详细错误 | ☐ |
