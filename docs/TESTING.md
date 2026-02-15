@@ -796,7 +796,7 @@ uv run kodaxp.py --provider zhipu-coding --session nonexistent_session "test"
 ```bash
 # 1. 在 KodaXP 项目创建 session
 cd /path/to/KodaXP
-uv run kodaxp.py --provider zhipu-coding "记住项目名是 KodaX"
+uv run kodaxp.py --provider zhipu-coding "记住项目名是 KodaXP"
 
 # 2. 查看创建的 session（应该显示）
 uv run kodaxp.py --session list
