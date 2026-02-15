@@ -421,7 +421,7 @@ dependencies = [
 ### 5.2 目录结构
 
 ```
-~/.kodaxpp/
+~/.kodaxp/
 ├── config.toml           # 全局配置
 ├── skills/
 │   ├── commit.py         # /commit skill (Python)
@@ -437,7 +437,7 @@ dependencies = [
 **方式一：Python 函数**（灵活，可执行工具）
 
 ```python
-# ~/.kodaxpp/skills/commit.py
+# ~/.kodaxp/skills/commit.py
 
 def skill_commit(agent, args: str) -> str:
     """根据 git diff 生成 commit 消息
@@ -457,7 +457,7 @@ def skill_commit(agent, args: str) -> str:
 **方式二：Markdown 文件**（简单，纯提示词）
 
 ```markdown
-# ~/.kodaxpp/skills/commit.md
+# ~/.kodaxp/skills/commit.md
 
 # Generate commit message
 
@@ -593,7 +593,7 @@ def stream_llm(messages: list) -> tuple[list, list]:
 ### 7.1 设计要点
 
 - **存储格式**: JSONL（第一行为元数据，后续为消息）
-- **存储位置**: `~/.kodaxpp/sessions/{session_id}.jsonl`
+- **存储位置**: `~/.kodaxp/sessions/{session_id}.jsonl`
 - **自动保存**: 每次消息后覆盖保存
 - **自动标题**: 从第一条用户消息提取前 50 字符作为标题
 
@@ -1554,7 +1554,7 @@ KodaXP/
 │   ├── DESIGN.md           # 设计文档（本文件）
 │   ├── LONG_RUNNING_GUIDE.md  # 长运行模式指南
 │   └── TESTING.md          # 测试指南
-└── ~/.kodaxpp/               # 用户配置目录
+└── ~/.kodaxp/               # 用户配置目录
     ├── skills/             # Skill 目录
     └── sessions/           # 会话存储
 ```
