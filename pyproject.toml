@@ -1,7 +1,7 @@
 [project]
-name = "kodax-agent"
-version = "0.1.0"
-description = "极致轻量化 Coding Agent"
+name = "kodaxp"
+version = "0.6.2"
+description = "极致轻量化 Coding Agent - 单文件实现，支持7种LLM提供商"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kodax = "kodax_agent:main"
+kodaxp = "kodax_agent:main"
 
 [build-system]
 requires = ["hatchling"]

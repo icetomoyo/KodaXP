@@ -1,10 +1,10 @@
-# Kodax Agent
+# KodaXP
 
 <div align="center">
 
 **A lightweight AI coding assistant that actually works.**
 
-Single file • ~800 LOC • 7 LLM providers • Streaming • Parallel execution
+Single file • ~2000 LOC • 7 LLM providers • Streaming • Parallel execution • Long-running mode
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -13,24 +13,26 @@ Single file • ~800 LOC • 7 LLM providers • Streaming • Parallel executio
 
 ---
 
-## Why Kodax?
+## Why KodaXP?
 
-**Transparent** • **Flexible** • **Customizable**
+**Transparent** • **Flexible** • **Powerful**
 
-Kodax is designed for developers who want to **understand**, **customize**, and **control** their AI coding assistant.
+KodaXP is designed for developers who want to **understand**, **customize**, and **control** their AI coding assistant.
 
-| What | Kodax | Others |
-|------|-------|--------|
-| **Code** | Single file (~800 LOC), read in 10 minutes | Thousands of files, hard to understand |
+| What | KodaXP | Others |
+|------|--------|--------|
+| **Code** | Single file (~2000 LOC), read in 30 minutes | Thousands of files, hard to understand |
 | **Providers** | 7 LLM providers, switch freely | Usually locked to one provider |
 | **Cost** | Use cheap models (Kimi, Zhipu, Qwen) | Often requires expensive subscriptions |
+| **Long-Running** | Feature tracking with auto-continue | Usually requires manual oversight |
 | **Customization** | Modify the code directly | Complex plugin systems |
 | **Learning** | Perfect for understanding how agents work | Black box |
 
-**When to use Kodax:**
+**When to use KodaXP:**
 - You want to **learn** how AI coding agents work
 - You need **flexibility** across multiple LLM providers
 - You want to **customize** the agent for your workflow
+- You need **long-running** autonomous development
 - You prefer **transparency** over magic
 
 **When to use others:**
@@ -279,14 +281,21 @@ Based on [Anthropic's research](https://www.anthropic.com/engineering/effective-
 
 ## How It Works
 
-Kodax is a simple agent loop:
+KodaXP is a simple agent loop:
 
 1. Send your task + available tools to the LLM
 2. LLM responds with text and/or tool calls
 3. Execute tools, send results back
 4. Repeat until done
 
-The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to understand exactly how it works.
+The entire code is in a single file (~2000 LOC). Read [kodax_agent.py](kodax_agent.py) to understand exactly how it works.
+
+Core components:
+- **Provider abstraction**: 7 LLM providers with unified interface
+- **Tool system**: read, write, edit, glob, grep, bash, undo
+- **Session management**: Persistent conversations with project scoping
+- **Long-running mode**: Feature tracking with auto-continue
+- **Context enhancement**: Git status, project snapshot, platform info
 
 ## Documentation
 
@@ -296,6 +305,18 @@ The entire core logic is ~100 lines. Read [kodax_agent.py](kodax_agent.py) to un
 - [中文文档](docs/README_CN.md) - Chinese README
 
 ## Version History
+
+### v0.6.2 (2026-02-15)
+
+- **Environment Awareness**: Platform context injection for cross-platform commands
+  - Auto-detects Windows and suggests correct commands (move, dir, del)
+  - Helps Agent avoid platform-specific command errors
+  - ~18 lines of code, minimal token overhead
+
+### v0.6.1 (2026-02-15)
+
+- **Plan Before Action**: Thinking guidance in SYSTEM_PROMPT for all modes
+- **Session Planning**: Automatic session plan creation in long-running mode
 
 ### v0.1.0 (2026-02-14)
 

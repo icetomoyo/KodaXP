@@ -1,14 +1,15 @@
 """
-Kodax Agent - 极致轻量化 Coding Agent
+KodaXP - 极致轻量化 Coding Agent
 
-单文件实现，约 500 LOC
+单文件实现，约 2000 LOC
 使用 uv 进行环境管理
 
 使用方式:
     uv run kodax_agent.py "你的编程任务"
-    uv run kodax_agent.py --provider kimi "你的任务"
+    uv run kodax_agent.py --provider kimi-code "你的任务"
     uv run kodax_agent.py --thinking "复杂任务"
     uv run kodax_agent.py /commit
+    uv run kodax_agent.py --init "长时间任务"
 
 环境变量:
     ANTHROPIC_API_KEY - Anthropic API 密钥
