@@ -150,8 +150,8 @@ uv run kodaxp.py --provider zhipu-coding --session 20260213_143000 "继续聊天
 
 **创建测试 Skill（Linux/macOS）**:
 ```bash
-mkdir -p ~/.kodaxpp/skills
-cat > ~/.kodaxpp/skills/hello.py << 'EOF'
+mkdir -p ~/.kodaxp/skills
+cat > ~/.kodaxp/skills/hello.py << 'EOF'
 def skill_hello(agent, args: str) -> str:
     """打招呼"""
     name = args.strip() or "朋友"
@@ -395,8 +395,8 @@ uv run kodaxp.py --provider zhipu-coding --init "构建用户认证系统"
 uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 1
 
 # 3. 检查是否创建了 .kodaxp 目录和 session_plan.md
-ls -la .kodaxpp/
-cat .kodaxpp/session_plan.md
+ls -la .kodaxp/
+cat .kodaxp/session_plan.md
 
 # 预期 session_plan.md 内容结构：
 # # Session Plan
@@ -455,8 +455,8 @@ uv run kodaxp.py --provider zhipu-coding --auto-continue --max-sessions 3
 # 2. 检查 PROGRESS.md 是否包含所有 sessions 的计划摘要
 cat PROGRESS.md
 
-# 3. 检查 .kodaxpp/session_plan.md 是否是最新 session 的计划
-cat .kodaxpp/session_plan.md
+# 3. 检查 .kodaxp/session_plan.md 是否是最新 session 的计划
+cat .kodaxp/session_plan.md
 
 # 预期：
 # - PROGRESS.md 包含 Session 1, 2, 3 的计划摘要

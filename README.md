@@ -180,7 +180,7 @@ kodaxp "your task"
 
 **Option 1: Environment Variable**
 ```bash
-export KODAX_PROVIDER=kimi-code
+export KODAXP_PROVIDER=kimi-code
 uv run kodaxp.py "your task"  # Uses kimi-code
 ```
 
@@ -190,7 +190,7 @@ uv run kodaxp.py "your task"  # Uses kimi-code
 alias kodaxp='uv run /path/to/KodaXP/kodaxp.py --provider kimi-code'
 ```
 
-**Priority**: `--provider` CLI arg > `KODAX_PROVIDER` env > default (zhipu-coding)
+**Priority**: `--provider` CLI arg > `KODAXP_PROVIDER` env > default (zhipu-coding)
 
 ### API Keys
 

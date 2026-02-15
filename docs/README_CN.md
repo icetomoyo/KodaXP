@@ -178,7 +178,7 @@ kodaxp "你的任务"
 
 **方式一：环境变量**
 ```bash
-export KODAX_PROVIDER=kimi-code
+export KODAXP_PROVIDER=kimi-code
 uv run kodaxp.py "你的任务"  # 使用 kimi-code
 ```
 
@@ -188,7 +188,7 @@ uv run kodaxp.py "你的任务"  # 使用 kimi-code
 alias kodaxp='uv run /path/to/KodaXP/kodaxp.py --provider kimi-code'
 ```
 
-**优先级**：`--provider` 命令行参数 > `KODAX_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
+**优先级**：`--provider` 命令行参数 > `KODAXP_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
 
 ### API Key 配置
 

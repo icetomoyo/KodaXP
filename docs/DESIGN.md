@@ -377,14 +377,14 @@ class ZhipuProvider(Provider):
 
 ### 4.7 CLI 配置
 
-**优先级**: `--provider` 命令行参数 > `KODAX_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
+**优先级**: `--provider` 命令行参数 > `KODAXP_PROVIDER` 环境变量 > 默认值 (zhipu-coding)
 
 ```bash
 # 使用默认 Provider (zhipu-coding)
 uv run kodaxp.py "你的任务"
 
 # 方式 1: 环境变量设置默认 Provider
-export KODAX_PROVIDER=kimi-code
+export KODAXP_PROVIDER=kimi-code
 export KIMI_API_KEY=your-key
 uv run kodaxp.py "你的任务"
 
