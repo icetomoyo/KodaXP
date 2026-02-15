@@ -29,6 +29,35 @@ uv run kodax_agent.py --provider zhipu-coding "列出当前目录下的文件"
 # 预期：Agent 调用 glob 工具，列出文件，流式输出结果
 ```
 
+### 1.1 Plan Before Action（简单任务）
+
+验证简单任务不需要正式计划：
+
+```bash
+# 简单只读任务应该直接执行
+uv run kodax_agent.py --provider zhipu-coding "读取 README.md 的前 10 行"
+
+# 预期：Agent 直接执行，不需要先解释计划
+```
+
+### 1.2 Plan Before Action（复杂任务）
+
+验证复杂任务会先思考再执行：
+
+```bash
+# 复杂任务应该先解释计划
+uv run kodax_agent.py --provider zhipu-coding --no-confirm "
+创建一个 Python 脚本 calculate.py，包含加、减、乘、除四个函数，
+每个函数都有类型注解和 docstring
+"
+
+# 预期 Agent 行为：
+# 1. 先解释理解："我需要创建一个计算器脚本..."
+# 2. 概述方法："我会创建包含四个函数的 Python 文件..."
+# 3. 考虑潜在问题："需要处理除以零的情况..."
+# 4. 然后执行
+```
+
 ### 2. 确认机制
 
 ```bash

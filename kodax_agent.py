@@ -396,6 +396,16 @@ When a tool call returns an error:
 - Break complex tasks into smaller steps
 - Summarize progress periodically
 
+## Plan Before Action
+
+For any non-trivial task (creating files, editing code, running complex commands):
+1. First explain your understanding of the task
+2. Outline your approach (what files, what changes, what order)
+3. Consider potential issues (edge cases, dependencies, conflicts)
+4. Then execute step by step
+
+For simple read-only tasks (reading a file, listing directory), just do it directly.
+
 Always explain what you're doing before taking action.
 
 {context}"""
